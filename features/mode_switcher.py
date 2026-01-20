@@ -68,6 +68,14 @@ class ModeSwitcherFeature(BaseFeature):
         
         logger.info(f"🔄 Mode switched: {old_mode} → {new_mode} ({new_mode_name})")
         
+        # Update system tray icon color
+        try:
+            from runtime.bootstrap import _engine
+            if _engine and _engine.system_tray:
+                _engine.system_tray.update_icon()
+        except Exception as e:
+            logger.warning(f"Could not update tray icon: {e}")
+        
         # Show notification in a thread to avoid blocking
         import threading
         def show_notif():
