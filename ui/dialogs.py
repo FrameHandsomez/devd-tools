@@ -248,3 +248,129 @@ def show_notification(title: str, message: str, duration: int = 3000):
     except Exception as e:
         logger.error(f"Error showing notification: {e}")
         root.destroy()
+
+
+def ask_commit_message(title: str = "Git Commit") -> Optional[str]:
+    """
+    Ask user for a commit message.
+    
+    Returns:
+        Commit message or None if cancelled
+    """
+    root = _create_root()
+    
+    try:
+        dialog = tk.Toplevel(root)
+        dialog.title(title)
+        dialog.geometry("450x150")
+        dialog.resizable(False, False)
+        dialog.attributes('-topmost', True)
+        
+        # Center
+        dialog.update_idletasks()
+        x = (dialog.winfo_screenwidth() - 450) // 2
+        y = (dialog.winfo_screenheight() - 150) // 2
+        dialog.geometry(f"+{x}+{y}")
+        
+        result = {"message": None}
+        
+        tk.Label(dialog, text="Enter commit message:", font=("Segoe UI", 10)).pack(anchor="w", padx=20, pady=(15, 5))
+        
+        msg_entry = tk.Entry(dialog, width=55, font=("Consolas", 10))
+        msg_entry.pack(padx=20)
+        msg_entry.focus_set()
+        
+        btn_frame = tk.Frame(dialog)
+        btn_frame.pack(pady=15)
+        
+        def on_commit():
+            msg = msg_entry.get().strip()
+            if not msg:
+                messagebox.showerror("Error", "Please enter a commit message")
+                return
+            result["message"] = msg
+            dialog.destroy()
+        
+        def on_cancel():
+            dialog.destroy()
+        
+        tk.Button(btn_frame, text="Commit", command=on_commit, width=10, bg="#4CAF50", fg="white").pack(side="left", padx=5)
+        tk.Button(btn_frame, text="Cancel", command=on_cancel, width=10).pack(side="left", padx=5)
+        
+        dialog.bind('<Return>', lambda e: on_commit())
+        dialog.bind('<Escape>', lambda e: on_cancel())
+        
+        dialog.wait_window()
+        
+        return result["message"]
+        
+    except Exception as e:
+        logger.error(f"Error in commit message dialog: {e}")
+        return None
+    finally:
+        root.destroy()
+
+
+def show_git_output(title: str, output: str, is_error: bool = False):
+    """
+    Show git command output in a scrollable dialog.
+    
+    Args:
+        title: Dialog title
+        output: Text output to display
+        is_error: Whether this is an error output (red text)
+    """
+    root = _create_root()
+    
+    try:
+        dialog = tk.Toplevel(root)
+        dialog.title(title)
+        dialog.geometry("600x400")
+        dialog.resizable(True, True)
+        dialog.attributes('-topmost', True)
+        
+        # Center
+        dialog.update_idletasks()
+        x = (dialog.winfo_screenwidth() - 600) // 2
+        y = (dialog.winfo_screenheight() - 400) // 2
+        dialog.geometry(f"+{x}+{y}")
+        
+        # Title label
+        title_color = "#ff6b6b" if is_error else "#4CAF50"
+        tk.Label(dialog, text=title, font=("Segoe UI", 12, "bold"), fg=title_color).pack(pady=(10, 5))
+        
+        # Scrollable text widget
+        text_frame = tk.Frame(dialog)
+        text_frame.pack(fill="both", expand=True, padx=15, pady=5)
+        
+        scrollbar = tk.Scrollbar(text_frame)
+        scrollbar.pack(side="right", fill="y")
+        
+        text_widget = tk.Text(
+            text_frame,
+            wrap="word",
+            font=("Consolas", 10),
+            bg="#1e1e1e",
+            fg="#d4d4d4",
+            yscrollcommand=scrollbar.set,
+            padx=10,
+            pady=10
+        )
+        text_widget.pack(side="left", fill="both", expand=True)
+        scrollbar.config(command=text_widget.yview)
+        
+        text_widget.insert("1.0", output)
+        text_widget.config(state="disabled")  # Read-only
+        
+        # Close button
+        tk.Button(dialog, text="Close", command=dialog.destroy, width=10).pack(pady=10)
+        
+        dialog.bind('<Escape>', lambda e: dialog.destroy())
+        dialog.bind('<Return>', lambda e: dialog.destroy())
+        
+        dialog.wait_window()
+        
+    except Exception as e:
+        logger.error(f"Error showing git output: {e}")
+    finally:
+        root.destroy()

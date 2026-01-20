@@ -14,8 +14,8 @@
 
 ```powershell
 # Clone repo
-git clone https://github.com/your-repo/macro-engine.git
-cd macro-engine
+git clone https://github.com/framehandsomez/jr-dev.git
+cd jr-dev
 
 # Install dependencies (ใช้ uv)
 uv venv

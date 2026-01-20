@@ -202,8 +202,27 @@ class CommandExecutor:
             True if all commands succeeded
         """
         try:
+            # Get current PATH and add common git locations
+            current_path = os.environ.get("PATH", "")
+            
+            # Common git installation paths
+            git_paths = [
+                r"C:\Program Files\Git\bin",
+                r"C:\Program Files (x86)\Git\bin", 
+                r"C:\Users\Cite\AppData\Local\GitHubDesktop\bin",
+                os.path.expandvars(r"%LOCALAPPDATA%\GitHubDesktop\bin"),
+                os.path.expandvars(r"%LOCALAPPDATA%\Programs\Git\bin"),
+            ]
+            
+            # Build extended PATH
+            extended_path = ";".join(git_paths) + ";" + current_path
+            
             # Create a batch script to run all commands
-            script_lines = [f"@echo off", f"title {title}"]
+            script_lines = [
+                "@echo off",
+                f'SET PATH={extended_path}',
+                f"title {title}"
+            ]
             
             if cwd:
                 script_lines.append(f'cd /d "{cwd}"')
@@ -233,10 +252,12 @@ class CommandExecutor:
                 f.write("\n".join(script_lines))
                 batch_file = f.name
             
-            # Run the batch file in a new console
+            # Run the batch file in a new console using 'start'
+            # Pass current environment so git is in PATH
             subprocess.Popen(
-                ["cmd.exe", "/c", batch_file],
-                creationflags=subprocess.CREATE_NEW_CONSOLE
+                f'start "Git Commit" cmd.exe /k "{batch_file}"',
+                shell=True,
+                env=os.environ.copy()
             )
             
             logger.info(f"Interactive terminal started with {len(commands)} commands")
