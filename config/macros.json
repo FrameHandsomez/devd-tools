@@ -1,0 +1,87 @@
+{
+  "version": "2.0",
+  "current_mode": "GIT",
+  "modes": {
+    "DEV": {
+      "name": "Development Mode",
+      "bindings": {
+        "f9": {
+          "feature": "clone_project",
+          "patterns": {
+            "short": "clone",
+            "long": "update"
+          }
+        },
+        "f10": {
+          "feature": "frontend_runner",
+          "patterns": {
+            "short": "run_dev",
+            "multi_3": "reset_path"
+          }
+        },
+        "f11": {
+          "feature": "mode_switcher",
+          "patterns": {
+            "short": "next_mode"
+          }
+        }
+      }
+    },
+    "GIT": {
+      "name": "Git Mode",
+      "bindings": {
+        "f9": {
+          "feature": "git_status",
+          "patterns": {
+            "short": "status"
+          }
+        },
+        "f10": {
+          "feature": "git_commit",
+          "patterns": {
+            "short": "commit"
+          }
+        },
+        "f11": {
+          "feature": "mode_switcher",
+          "patterns": {
+            "short": "next_mode"
+          }
+        }
+      }
+    },
+    "AI": {
+      "name": "AI Assistant Mode",
+      "bindings": {
+        "f11": {
+          "feature": "mode_switcher",
+          "patterns": {
+            "short": "next_mode"
+          }
+        }
+      }
+    },
+    "SCRIPT": {
+      "name": "Script Mode",
+      "bindings": {
+        "f11": {
+          "feature": "mode_switcher",
+          "patterns": {
+            "short": "next_mode"
+          }
+        }
+      }
+    }
+  },
+  "settings": {
+    "long_press_ms": 800,
+    "multi_press_window_ms": 500,
+    "multi_press_count": 3,
+    "default_clone_path": "C:\\Projects",
+    "notification_enabled": true,
+    "auto_start": false
+  },
+  "saved_paths": {
+    "frontend_project": null
+  }
+}
