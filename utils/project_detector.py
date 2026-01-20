@@ -77,3 +77,69 @@ def get_dev_command(project_path: Path) -> list[str] | None:
             logger.error(f"Error reading package.json: {e}")
     
     return None
+
+
+def get_active_project_path() -> Path | None:
+    """
+    Try to detect the active project path from the foreground window.
+    
+    Supports:
+    - VS Code: Extracts folder name from window title
+    - Windows Explorer: Gets current folder path
+    - Falls back to None if detection fails
+    """
+    try:
+        import win32gui
+        import win32process
+        import os
+        
+        # Get foreground window
+        hwnd = win32gui.GetForegroundWindow()
+        if not hwnd:
+            return None
+        
+        title = win32gui.GetWindowText(hwnd)
+        if not title:
+            return None
+        
+        logger.info(f"Active window title: {title}")
+        
+        # VS Code pattern: "filename - folder - Visual Studio Code"
+        # or: "folder - Visual Studio Code"
+        if "Visual Studio Code" in title:
+            parts = title.split(" - ")
+            if len(parts) >= 2:
+                # Folder is usually the second-to-last part before "Visual Studio Code"
+                folder_name = parts[-2].strip()
+                
+                # Search common development directories for this folder
+                search_paths = [
+                    Path.home() / "Documents" / "GitHub",
+                    Path.home() / "Documents",
+                    Path.home() / "Projects",
+                    Path("C:/Projects"),
+                    Path("D:/Projects"),
+                ]
+                
+                for search_path in search_paths:
+                    if search_path.exists():
+                        candidate = search_path / folder_name
+                        if candidate.exists() and (candidate / ".git").exists():
+                            logger.info(f"Detected project from VS Code: {candidate}")
+                            return candidate
+        
+        # Windows Explorer pattern: Get path from explorer window
+        # This is more complex and may not always work
+        if "File Explorer" in title or title.endswith(":\\"):
+            # For now, we cannot easily get Explorer's current path without more complex COM
+            pass
+        
+        return None
+        
+    except ImportError:
+        logger.warning("pywin32 not available for window detection")
+        return None
+    except Exception as e:
+        logger.warning(f"Error detecting active project: {e}")
+        return None
+

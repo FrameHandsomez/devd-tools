@@ -68,8 +68,14 @@ class SystemTrayUI:
         }
         return mode_colors.get(self.mode_manager.current_mode, "#4CAF50")
     
+    
     def _create_menu(self) -> Menu:
         """Create the system tray menu"""
+        from utils.windows_utils import is_auto_start_enabled
+        
+        # Status of auto-start for checkbox
+        is_autostart = is_auto_start_enabled()
+        
         return Menu(
             MenuItem(
                 f"Mode: {self.mode_manager.get_mode_name()}",
@@ -78,10 +84,47 @@ class SystemTrayUI:
             ),
             Menu.SEPARATOR,
             MenuItem("Show Status", self._on_show_status),
+            MenuItem(
+                "Start on Boot", 
+                self._on_toggle_auto_start,
+                checked=lambda item: is_autostart
+            ),
             MenuItem("Reload Config", self._on_reload_config),
             Menu.SEPARATOR,
             MenuItem("Exit", self._on_exit)
         )
+    
+    def _on_toggle_auto_start(self, icon, item):
+        """Toggle auto-start setting"""
+        from utils.windows_utils import enable_auto_start, disable_auto_start, is_auto_start_enabled
+        
+        current_state = is_auto_start_enabled()
+        new_state = not current_state
+        
+        success = False
+        if new_state:
+            success = enable_auto_start()
+            msg = "Application will now start on boot"
+        else:
+            success = disable_auto_start()
+            msg = "Auto-start disabled"
+            
+        if success:
+            # Update config file
+            settings = self.mode_manager.config_manager.get_settings()
+            settings["auto_start"] = new_state
+            self.mode_manager.config_manager.save_settings(settings)
+            
+            # Show notification
+            from ui.dialogs import show_notification
+            show_notification(
+                title="Settings Updated",
+                message=msg,
+                duration=2000
+            )
+            
+            # Refresh menu
+            self.icon.menu = self._create_menu()
     
     def _on_show_status(self):
         """Show current status"""
@@ -146,3 +189,4 @@ class SystemTrayUI:
             self.icon.icon = self._create_icon_image(self._get_mode_color())
             self.icon.title = f"Macro Engine - {self.mode_manager.get_mode_name()}"
             self.icon.menu = self._create_menu()
+

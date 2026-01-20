@@ -42,11 +42,30 @@ class GitStatusFeature(BaseFeature):
     def _show_status(self) -> FeatureResult:
         """Show git status for selected project"""
         
-        from ui.dialogs import ask_folder_path, show_git_output
+        from ui.dialogs import ask_folder_path, show_git_output, show_notification
+        from utils.project_detector import get_active_project_path
+        from core.commands.command_executor import find_git_path
         
-        # Use saved path or ask for folder
-        project_path = self._last_path
+        # Check if Git is installed first
+        if not find_git_path():
+            show_notification(
+                title="❌ Git ไม่พบในเครื่อง",
+                message="กรุณาติดตั้ง Git ก่อนใช้งาน\ngit-scm.com/download/win",
+                duration=5000
+            )
+            return FeatureResult(
+                status=FeatureStatus.ERROR,
+                message="Git not found"
+            )
         
+        # Try to auto-detect from active window (VS Code)
+        project_path = get_active_project_path()
+        
+        # Fall back to saved path
+        if not project_path:
+            project_path = self._last_path
+        
+        # If still no path or path doesn't exist, ask user
         if not project_path or not project_path.exists():
             folder = ask_folder_path("Select Git Repository")
             if not folder:
