@@ -15,6 +15,61 @@ from utils.logger import get_logger
 logger = get_logger(__name__)
 
 
+def find_git_path() -> Optional[str]:
+    """
+    Find git executable path automatically.
+    Searches common installation locations on Windows.
+    
+    Returns:
+        Path to git bin directory, or None if not found
+    """
+    import shutil
+    
+    # First, try if git is already in PATH
+    git_exe = shutil.which("git")
+    if git_exe:
+        return str(Path(git_exe).parent)
+    
+    # Common git installation paths to search
+    possible_paths = [
+        # Standard Git for Windows
+        r"C:\Program Files\Git\bin",
+        r"C:\Program Files (x86)\Git\bin",
+        # User-installed
+        os.path.expandvars(r"%LOCALAPPDATA%\Programs\Git\bin"),
+        # GitHub Desktop
+        os.path.expandvars(r"%LOCALAPPDATA%\GitHubDesktop\bin"),
+        # Scoop
+        os.path.expandvars(r"%USERPROFILE%\scoop\apps\git\current\bin"),
+        # Chocolatey
+        r"C:\ProgramData\chocolatey\bin",
+        # PortableGit
+        os.path.expandvars(r"%USERPROFILE%\PortableGit\bin"),
+    ]
+    
+    for path in possible_paths:
+        git_exe = Path(path) / "git.exe"
+        if git_exe.exists():
+            logger.info(f"Found git at: {path}")
+            return path
+    
+    # Try Windows Registry as last resort
+    try:
+        import winreg
+        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\GitForWindows")
+        install_path = winreg.QueryValueEx(key, "InstallPath")[0]
+        winreg.CloseKey(key)
+        git_bin = str(Path(install_path) / "bin")
+        if Path(git_bin).exists():
+            logger.info(f"Found git via registry: {git_bin}")
+            return git_bin
+    except:
+        pass
+    
+    logger.warning("Git not found! Please install Git for Windows.")
+    return None
+
+
 class CommandStatus(Enum):
     SUCCESS = "success"
     ERROR = "error"
@@ -202,20 +257,16 @@ class CommandExecutor:
             True if all commands succeeded
         """
         try:
-            # Get current PATH and add common git locations
+            # Get current PATH and find git automatically
             current_path = os.environ.get("PATH", "")
             
-            # Common git installation paths
-            git_paths = [
-                r"C:\Program Files\Git\bin",
-                r"C:\Program Files (x86)\Git\bin", 
-                r"C:\Users\Cite\AppData\Local\GitHubDesktop\bin",
-                os.path.expandvars(r"%LOCALAPPDATA%\GitHubDesktop\bin"),
-                os.path.expandvars(r"%LOCALAPPDATA%\Programs\Git\bin"),
-            ]
-            
-            # Build extended PATH
-            extended_path = ";".join(git_paths) + ";" + current_path
+            # Find git path automatically
+            git_path = find_git_path()
+            if git_path:
+                extended_path = f"{git_path};{current_path}"
+            else:
+                extended_path = current_path
+                logger.warning("Git not found - commands may fail")
             
             # Create a batch script to run all commands
             script_lines = [
@@ -255,7 +306,7 @@ class CommandExecutor:
             # Run the batch file in a new console using 'start'
             # Pass current environment so git is in PATH
             subprocess.Popen(
-                f'start "Git Commit" cmd.exe /k "{batch_file}"',
+                f'start "Git Commit" cmd.exe /c "{batch_file}"',
                 shell=True,
                 env=os.environ.copy()
             )
