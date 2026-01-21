@@ -169,8 +169,8 @@ class AIAssistantFeature(BaseFeature):
         except OSError:
             return False
 
-    def _run_prompt(self, prompt_key: str, title: str) -> FeatureResult:
-        """Run a prompt with user's code"""
+    def _run_prompt(self, prompt_key: str, title: str, include_context: bool = True) -> FeatureResult:
+        """Run a prompt with user's code and optional project context"""
         
         from ui.dialogs import show_notification, ask_yes_no
         import pyperclip
@@ -198,9 +198,36 @@ class AIAssistantFeature(BaseFeature):
                     message="No code in clipboard"
                 )
             
+            # Get project context
+            context_str = ""
+            if include_context:
+                try:
+                    from utils.context_collector import get_collector
+                    
+                    # Try to get active project path
+                    project_path = None
+                    active = self.config_manager.get_active_project("frontend_project")
+                    if active:
+                        project_path = Path(active["path"])
+                    elif self.config_manager.get_active_project("git_project"):
+                        active = self.config_manager.get_active_project("git_project")
+                        project_path = Path(active["path"])
+                    
+                    if project_path and project_path.exists():
+                        collector = get_collector(project_path)
+                        context_str = collector.format_context_for_prompt(include_structure=True)
+                        context_str = f"\n\n---\n{context_str}\n---\n"
+                        logger.info(f"Collected context from: {project_path}")
+                except Exception as e:
+                    logger.warning(f"Could not collect context: {e}")
+            
             # Format the prompt
             prompt_template = PROMPTS.get(prompt_key, "")
             full_prompt = prompt_template.format(code=code)
+            
+            # Add context if available
+            if context_str:
+                full_prompt = f"{context_str}\n\n{full_prompt}"
             
             # Copy formatted prompt to clipboard
             pyperclip.copy(full_prompt)
