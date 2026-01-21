@@ -99,6 +99,35 @@ class CommandExecutor:
     def __init__(self):
         self._running_processes: dict[int, subprocess.Popen] = {}
     
+    def _build_command_string(self, command: list[str]) -> str:
+        """
+        Build a properly quoted command string for batch file execution.
+        Handles spaces, special characters, and emojis.
+        
+        Args:
+            command: List of command arguments
+        
+        Returns:
+            Properly quoted command string
+        """
+        import shlex
+        
+        quoted_parts = []
+        for i, arg in enumerate(command):
+            # First argument (command name) usually doesn't need quoting
+            # But arguments with spaces or special chars need quotes
+            needs_quote = any(c in arg for c in ' \t"&|<>^%!()') or \
+                         any(ord(c) > 127 for c in arg)  # Non-ASCII (emojis, Thai, etc.)
+            
+            if needs_quote:
+                # Escape double quotes inside the argument
+                escaped = arg.replace('"', '\\"')
+                quoted_parts.append(f'"{escaped}"')
+            else:
+                quoted_parts.append(arg)
+        
+        return " ".join(quoted_parts)
+    
     def execute(
         self,
         command: list[str],
@@ -279,11 +308,12 @@ class CommandExecutor:
                 script_lines.append(f'cd /d "{cwd}"')
             
             for cmd in commands:
-                cmd_str = " ".join(cmd)
-                script_lines.append(f"echo Running: {cmd_str}")
+                # Properly quote each argument that contains spaces or special chars
+                cmd_str = self._build_command_string(cmd)
+                script_lines.append(f"echo Running: {cmd[0]} ...")  # Only show command name
                 script_lines.append(cmd_str)
                 script_lines.append("if errorlevel 1 (")
-                script_lines.append(f'  echo Command failed: {cmd_str}')
+                script_lines.append(f'  echo Command failed!')
                 script_lines.append("  pause")
                 script_lines.append("  exit /b 1")
                 script_lines.append(")")

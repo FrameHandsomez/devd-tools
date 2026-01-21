@@ -374,3 +374,169 @@ def show_git_output(title: str, output: str, is_error: bool = False):
         logger.error(f"Error showing git output: {e}")
     finally:
         root.destroy()
+
+
+def ask_project_selection(
+    projects: list[dict],
+    title: str = "Select Project",
+    allow_add: bool = True,
+    allow_remove: bool = True
+) -> dict | None:
+    """
+    Show project selection dialog with list of saved projects.
+    
+    Args:
+        projects: List of project dicts with 'name' and 'path' keys
+        title: Dialog title
+        allow_add: Show "Add New" button
+        allow_remove: Show "Remove" button
+    
+    Returns:
+        Dict with action and data:
+        - {"action": "select", "project": {...}}
+        - {"action": "add", "path": "..."}
+        - {"action": "remove", "project": {...}}
+        - None if cancelled
+    """
+    root = _create_root()
+    
+    try:
+        dialog = tk.Toplevel(root)
+        dialog.title(title)
+        dialog.geometry("450x380")
+        dialog.resizable(False, False)
+        dialog.attributes('-topmost', True)
+        dialog.configure(bg="#1a1a2e")
+        
+        # Center
+        dialog.update_idletasks()
+        x = (dialog.winfo_screenwidth() - 450) // 2
+        y = (dialog.winfo_screenheight() - 380) // 2
+        dialog.geometry(f"+{x}+{y}")
+        
+        result = {"action": None, "data": None}
+        
+        # Header
+        header = tk.Frame(dialog, bg="#4CAF50", height=45)
+        header.pack(fill="x")
+        header.pack_propagate(False)
+        
+        tk.Label(
+            header,
+            text=f"📁 {title}",
+            font=("Segoe UI", 12, "bold"),
+            fg="white",
+            bg="#4CAF50"
+        ).pack(pady=10)
+        
+        # Project list
+        list_frame = tk.Frame(dialog, bg="#1a1a2e")
+        list_frame.pack(fill="both", expand=True, padx=15, pady=10)
+        
+        if not projects:
+            tk.Label(
+                list_frame,
+                text="ยังไม่มี project\nกด 'Add New' เพื่อเพิ่ม",
+                font=("Segoe UI", 11),
+                fg="#888888",
+                bg="#1a1a2e",
+                justify="center"
+            ).pack(pady=40)
+            listbox = None
+        else:
+            # Scrollbar
+            scrollbar = tk.Scrollbar(list_frame)
+            scrollbar.pack(side="right", fill="y")
+            
+            listbox = tk.Listbox(
+                list_frame,
+                font=("Segoe UI", 10),
+                bg="#2a2a4e",
+                fg="white",
+                selectbackground="#4CAF50",
+                selectforeground="white",
+                height=10,
+                yscrollcommand=scrollbar.set
+            )
+            listbox.pack(fill="both", expand=True)
+            scrollbar.config(command=listbox.yview)
+            
+            for p in projects:
+                listbox.insert(tk.END, f"  {p['name']}  ({p['path']})")
+            
+            if projects:
+                listbox.select_set(0)
+        
+        # Buttons
+        btn_frame = tk.Frame(dialog, bg="#1a1a2e")
+        btn_frame.pack(pady=10)
+        
+        def on_select():
+            if listbox and listbox.curselection():
+                idx = listbox.curselection()[0]
+                result["action"] = "select"
+                result["data"] = projects[idx]
+            dialog.destroy()
+        
+        def on_add():
+            dialog.destroy()
+            folder = filedialog.askdirectory(title="Select project folder")
+            if folder:
+                result["action"] = "add"
+                result["data"] = folder
+        
+        def on_remove():
+            if listbox and listbox.curselection():
+                idx = listbox.curselection()[0]
+                result["action"] = "remove"
+                result["data"] = projects[idx]
+            dialog.destroy()
+        
+        def on_cancel():
+            dialog.destroy()
+        
+        # Select button
+        if projects:
+            tk.Button(
+                btn_frame, text="▶ Run", command=on_select,
+                width=10, bg="#4CAF50", fg="white", font=("Segoe UI", 10)
+            ).pack(side="left", padx=5)
+        
+        # Add button
+        if allow_add:
+            tk.Button(
+                btn_frame, text="➕ Add", command=on_add,
+                width=10, bg="#2196F3", fg="white", font=("Segoe UI", 10)
+            ).pack(side="left", padx=5)
+        
+        # Remove button
+        if allow_remove and projects:
+            tk.Button(
+                btn_frame, text="🗑️ Remove", command=on_remove,
+                width=10, bg="#ff6b6b", fg="white", font=("Segoe UI", 10)
+            ).pack(side="left", padx=5)
+        
+        # Cancel button
+        tk.Button(
+            btn_frame, text="Cancel", command=on_cancel,
+            width=10, font=("Segoe UI", 10)
+        ).pack(side="left", padx=5)
+        
+        # Bindings
+        dialog.bind('<Return>', lambda e: on_select())
+        dialog.bind('<Escape>', lambda e: on_cancel())
+        if listbox:
+            listbox.bind('<Double-1>', lambda e: on_select())
+        
+        dialog.wait_window()
+        
+        if result["action"]:
+            return {"action": result["action"], "project" if result["action"] != "add" else "path": result["data"]}
+        return None
+        
+    except Exception as e:
+        logger.error(f"Error in project selection dialog: {e}")
+        return None
+    finally:
+        root.destroy()
+

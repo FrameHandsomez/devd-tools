@@ -102,6 +102,87 @@ class ConfigManager:
         self.save()
         logger.info(f"Saved path for {key}: {path}")
     
+    # ==================== Multi-Project Support ====================
+    
+    def get_projects(self, key: str) -> list[dict]:
+        """Get all saved projects for a feature (e.g., frontend_projects)"""
+        projects_key = f"{key}_list"
+        return self._config.get("saved_paths", {}).get(projects_key, [])
+    
+    def add_project(self, key: str, path: str, name: str = None) -> bool:
+        """Add a project to the list"""
+        if "saved_paths" not in self._config:
+            self._config["saved_paths"] = {}
+        
+        projects_key = f"{key}_list"
+        if projects_key not in self._config["saved_paths"]:
+            self._config["saved_paths"][projects_key] = []
+        
+        projects = self._config["saved_paths"][projects_key]
+        
+        # Check if already exists
+        if any(p["path"] == path for p in projects):
+            logger.info(f"Project already exists: {path}")
+            return False
+        
+        # Auto-generate name from folder if not provided
+        if not name:
+            name = Path(path).name
+        
+        projects.append({
+            "name": name,
+            "path": path
+        })
+        
+        self.save()
+        logger.info(f"Added project: {name} ({path})")
+        return True
+    
+    def remove_project(self, key: str, path: str) -> bool:
+        """Remove a project from the list"""
+        projects_key = f"{key}_list"
+        projects = self._config.get("saved_paths", {}).get(projects_key, [])
+        
+        for i, p in enumerate(projects):
+            if p["path"] == path:
+                del projects[i]
+                self.save()
+                logger.info(f"Removed project: {path}")
+                return True
+        
+        return False
+    
+    def get_active_project(self, key: str) -> dict | None:
+        """Get the currently active project"""
+        active_key = f"{key}_active"
+        active_path = self._config.get("saved_paths", {}).get(active_key)
+        
+        if not active_path:
+            return None
+        
+        # Find project in list
+        projects = self.get_projects(key)
+        for p in projects:
+            if p["path"] == active_path:
+                return p
+        
+        return None
+    
+    def set_active_project(self, key: str, path: str):
+        """Set the active project"""
+        if "saved_paths" not in self._config:
+            self._config["saved_paths"] = {}
+        
+        active_key = f"{key}_active"
+        self._config["saved_paths"][active_key] = path
+        self.save()
+        logger.info(f"Active project set: {path}")
+    
+    def save_settings(self, settings: dict):
+        """Save settings section"""
+        self._config["settings"] = settings
+        self.save()
+    
     def _get_default_config(self) -> dict:
         """Return default configuration"""
         return {

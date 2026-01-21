@@ -84,6 +84,7 @@ class SystemTrayUI:
             ),
             Menu.SEPARATOR,
             MenuItem("Show Status", self._on_show_status),
+            MenuItem("⚙️ Settings", self._on_show_settings),
             MenuItem(
                 "Start on Boot", 
                 self._on_toggle_auto_start,
@@ -125,6 +126,37 @@ class SystemTrayUI:
             
             # Refresh menu
             self.icon.menu = self._create_menu()
+    
+    def _on_show_settings(self):
+        """Show settings dialog"""
+        import threading
+        
+        def show_dialog():
+            from ui.settings_dialog import show_settings_dialog
+            
+            def on_settings_saved(settings):
+                # Update event router settings
+                from runtime.bootstrap import _engine
+                if _engine and _engine.event_router:
+                    _engine.event_router.long_press_ms = settings.get("long_press_ms", 800)
+                    _engine.event_router.multi_press_window_ms = settings.get("multi_press_window_ms", 500)
+                    _engine.event_router.multi_press_count = settings.get("multi_press_count", 3)
+                
+                # Update tray menu
+                if self.icon:
+                    self.icon.menu = self._create_menu()
+                
+                from ui.dialogs import show_notification
+                show_notification(
+                    title="✅ Settings Saved",
+                    message="Settings have been updated",
+                    duration=2000
+                )
+            
+            show_settings_dialog(self.mode_manager.config_manager, on_settings_saved)
+        
+        # Run in separate thread to avoid blocking tray
+        threading.Thread(target=show_dialog, daemon=True).start()
     
     def _on_show_status(self):
         """Show current status"""

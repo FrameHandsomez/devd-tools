@@ -16,6 +16,7 @@
           "feature": "frontend_runner",
           "patterns": {
             "short": "run_dev",
+            "long": "select",
             "multi_3": "reset_path"
           }
         },
