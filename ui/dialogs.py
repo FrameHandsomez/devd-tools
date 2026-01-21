@@ -19,6 +19,20 @@ def _create_root() -> tk.Tk:
     return root
 
 
+def ask_yes_no(title: str, message: str) -> bool:
+    """Show Yes/No confirmation dialog"""
+    root = _create_root()
+    try:
+        result = messagebox.askyesno(title, message, parent=root)
+        root.destroy()
+        return result
+    except Exception as e:
+        logger.error(f"Error checking yes/no: {e}")
+        if root:
+            root.destroy()
+        return False
+
+
 def ask_git_clone_info(default_path: str = "C:\\Projects") -> Optional[Tuple[str, str]]:
     """
     Ask user for Git URL and clone path.

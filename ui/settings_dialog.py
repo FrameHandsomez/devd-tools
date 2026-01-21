@@ -87,6 +87,7 @@ class SettingsDialog:
         self._create_keybindings_tab()
         self._create_projects_tab()
         self._create_theme_tab()
+        self._create_stats_tab()
         self._create_backup_tab()
         self._create_about_tab()
         
@@ -143,6 +144,38 @@ class SettingsDialog:
         
         self.autostart_var = tk.BooleanVar(value=self.settings.get("auto_start", False))
         self._create_toggle(behavior_frame, "Start on Boot", self.autostart_var, 1)
+        
+        # Active Keys section
+        self._create_section_header(content, "⌨️ Active Keys")
+        
+        keys_frame = tk.Frame(content, bg="#1a1a2e")
+        keys_frame.pack(fill="x", pady=(0, 10))
+        
+        # Load current active keys (default F9-F12)
+        current_keys = self.settings.get("monitored_keys", ["f9", "f10", "f11", "f12"])
+        self.key_vars = {}
+        
+        # Grid of checkboxes for F1-F12
+        for i in range(1, 13):
+            key = f"f{i}"
+            row = (i-1) // 6
+            col = (i-1) % 6
+            
+            var = tk.BooleanVar(value=key in current_keys)
+            self.key_vars[key] = var
+            
+            cb = tk.Checkbutton(
+                keys_frame,
+                text=key.upper(),
+                variable=var,
+                font=("Segoe UI", 9),
+                bg="#1a1a2e",
+                fg="white",
+                selectcolor="#4CAF50",
+                activebackground="#1a1a2e",
+                activeforeground="white"
+            )
+            cb.grid(row=row, column=col, padx=5, pady=5, sticky="w")
         
         # Paths section
         self._create_section_header(content, "📁 Paths")
@@ -601,6 +634,107 @@ class SettingsDialog:
             else:
                 btn.config(relief="solid", bd=2)
     
+    # ==================== Statistics Tab ====================
+    
+    def _create_stats_tab(self):
+        """Create Statistics dashboard tab"""
+        tab = tk.Frame(self.notebook, bg="#1a1a2e")
+        self.notebook.add(tab, text="📊 Stats")
+        
+        content = tk.Frame(tab, bg="#1a1a2e", padx=20, pady=15)
+        content.pack(fill="both", expand=True)
+        
+        self._create_section_header(content, "📊 Usage Statistics")
+        
+        # Get stats
+        try:
+            from utils.statistics import get_tracker
+            stats = get_tracker().get_summary()
+        except Exception:
+            stats = {
+                "total_actions": 0,
+                "total_commits": 0,
+                "total_sessions": 0,
+                "total_hours": 0,
+                "streak_days": 0,
+                "favorite_mode": "N/A",
+                "favorite_feature": "N/A"
+            }
+        
+        # Stats grid
+        stats_frame = tk.Frame(content, bg="#2a2a4e", padx=20, pady=15)
+        stats_frame.pack(fill="x", pady=10)
+        
+        stat_items = [
+            ("🎯 Total Actions:", str(stats["total_actions"])),
+            ("📝 Total Commits:", str(stats["total_commits"])),
+            ("🔄 Sessions:", str(stats["total_sessions"])),
+            ("⏱️ Total Hours:", f"{stats['total_hours']}h"),
+            ("🔥 Streak:", f"{stats['streak_days']} days"),
+            ("❤️ Favorite Mode:", stats["favorite_mode"]),
+            ("⭐ Most Used:", stats["favorite_feature"]),
+        ]
+        
+        for i, (label, value) in enumerate(stat_items):
+            row = i // 2
+            col = i % 2
+            
+            item_frame = tk.Frame(stats_frame, bg="#2a2a4e")
+            item_frame.grid(row=row, column=col, sticky="w", padx=20, pady=8)
+            
+            tk.Label(
+                item_frame,
+                text=label,
+                font=("Segoe UI", 10),
+                fg="#888888",
+                bg="#2a2a4e"
+            ).pack(side="left")
+            
+            tk.Label(
+                item_frame,
+                text=value,
+                font=("Consolas", 11, "bold"),
+                fg="#4CAF50",
+                bg="#2a2a4e"
+            ).pack(side="left", padx=5)
+        
+        # Buttons
+        btn_frame = tk.Frame(content, bg="#1a1a2e")
+        btn_frame.pack(fill="x", pady=15)
+        
+        def refresh_stats():
+            # Close and reopen settings
+            self.dialog.destroy()
+            self.root.destroy()
+            show_settings_dialog(self.config_manager, self.on_save)
+        
+        tk.Button(
+            btn_frame,
+            text="🔄 Refresh",
+            command=refresh_stats,
+            font=("Segoe UI", 9),
+            width=12
+        ).pack(side="left", padx=5)
+        
+        def reset_stats():
+            if messagebox.askyesno("Reset Stats", "Reset all statistics?"):
+                try:
+                    from utils.statistics import get_tracker
+                    get_tracker().reset_stats()
+                    messagebox.showinfo("Done", "Statistics reset!")
+                except Exception as e:
+                    messagebox.showerror("Error", str(e))
+        
+        tk.Button(
+            btn_frame,
+            text="🗑️ Reset Stats",
+            command=reset_stats,
+            font=("Segoe UI", 9),
+            bg="#ff6b6b",
+            fg="white",
+            width=12
+        ).pack(side="left", padx=5)
+    
     # ==================== Backup Tab ====================
     
     def _create_backup_tab(self):
@@ -891,6 +1025,11 @@ class SettingsDialog:
         self.settings["notification_enabled"] = self.notif_var.get()
         self.settings["auto_start"] = self.autostart_var.get()
         self.settings["default_clone_path"] = self.clone_path_var.get()
+        
+        # Save monitored keys
+        if hasattr(self, 'key_vars'):
+            monitored = [k for k, v in self.key_vars.items() if v.get()]
+            self.settings["monitored_keys"] = monitored
         
         # Save icon color if set
         if hasattr(self, 'icon_color_var'):

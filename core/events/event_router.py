@@ -163,6 +163,13 @@ class EventRouter:
             logger.info(f"Executing feature: {feature.name}, action: {action}")
             result = feature.execute(event, action)
             
+            # Track statistics
+            try:
+                from utils.statistics import get_tracker
+                get_tracker().track_feature_execution(feature.name, action)
+            except Exception:
+                pass  # Don't fail if stats tracking fails
+            
             # Check if feature returned an error
             if result and hasattr(result, 'status'):
                 from core.features.base_feature import FeatureStatus

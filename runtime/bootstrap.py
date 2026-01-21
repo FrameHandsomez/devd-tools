@@ -76,7 +76,8 @@ class MacroEngine:
         
         # 6. Initialize input provider
         self.input_provider = KeyboardInputProvider(
-            event_callback=self.event_router.route_event
+            event_callback=self.event_router.route_event,
+            config_manager=self.config_manager
         )
         logger.info("Keyboard input provider ready")
         
@@ -104,6 +105,13 @@ class MacroEngine:
         """Start the engine"""
         self.running = True
         logger.info("Starting Macro Engine...")
+        
+        # Start statistics session
+        try:
+            from utils.statistics import get_tracker
+            get_tracker().start_session()
+        except Exception:
+            pass
         
         # Start input listener
         self.input_provider.start()

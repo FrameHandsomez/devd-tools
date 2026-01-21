@@ -300,6 +300,7 @@ class CommandExecutor:
             # Create a batch script to run all commands
             script_lines = [
                 "@echo off",
+                "chcp 65001 > nul",  # Enable UTF-8
                 f'SET PATH={extended_path}',
                 f"title {title}"
             ]
@@ -328,15 +329,17 @@ class CommandExecutor:
                 mode="w",
                 suffix=".bat",
                 delete=False,
-                encoding="utf-8"
+                encoding="utf-8"  # Write as UTF-8
             ) as f:
                 f.write("\n".join(script_lines))
                 batch_file = f.name
             
             # Run the batch file in a new console using 'start'
-            # Pass current environment so git is in PATH
+            # Use specific command format that handles spaces better
+            cmd_command = f'start "{title}" cmd.exe /c "{batch_file}"'
+            
             subprocess.Popen(
-                f'start "Git Commit" cmd.exe /c "{batch_file}"',
+                cmd_command,
                 shell=True,
                 env=os.environ.copy()
             )

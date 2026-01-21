@@ -99,6 +99,20 @@
     "SCRIPT": {
       "name": "Script Mode",
       "bindings": {
+        "f9": {
+          "feature": "terminal_quick",
+          "patterns": {
+            "short": "open_here",
+            "long": "select"
+          }
+        },
+        "f10": {
+          "feature": "terminal_quick",
+          "patterns": {
+            "short": "open_here",
+            "long": "select"
+          }
+        },
         "f11": {
           "feature": "mode_switcher",
           "patterns": {
@@ -134,6 +148,13 @@
         "path": "C:/Users/Framex/Documents/GitHub/jr-dev"
       }
     ],
-    "frontend_project_active": "C:\\Users\\Framex\\Documents\\GitHub\\jr-dev"
+    "frontend_project_active": "C:\\Users\\Framex\\Documents\\GitHub\\jr-dev",
+    "git_project_list": [
+      {
+        "name": "jr-dev",
+        "path": "C:/Users/Framex/Documents/GitHub/jr-dev"
+      }
+    ],
+    "git_project_active": "C:/Users/Framex/Documents/GitHub/jr-dev"
   }
 }

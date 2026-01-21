@@ -150,6 +150,10 @@ class SystemTrayUI:
                     _engine.event_router.multi_press_window_ms = settings.get("multi_press_window_ms", 500)
                     _engine.event_router.multi_press_count = settings.get("multi_press_count", 3)
                 
+                # Reload monitored keys
+                if _engine and _engine.input_provider:
+                    _engine.input_provider.reload_monitored_keys()
+                
                 # Update tray menu
                 if self.icon:
                     self.icon.menu = self._create_menu()

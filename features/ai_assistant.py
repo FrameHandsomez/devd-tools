@@ -159,11 +159,29 @@ class AIAssistantFeature(BaseFeature):
                 message=f"Unknown action: {action}"
             )
     
+    def _check_connection(self) -> bool:
+        """Check internet connection"""
+        import socket
+        try:
+            # Try to connect to Google DNS (fastest check)
+            socket.create_connection(("8.8.8.8", 53), timeout=3)
+            return True
+        except OSError:
+            return False
+
     def _run_prompt(self, prompt_key: str, title: str) -> FeatureResult:
         """Run a prompt with user's code"""
         
-        from ui.dialogs import show_notification
+        from ui.dialogs import show_notification, ask_yes_no
         import pyperclip
+        
+        # Check network first
+        if not self._check_connection():
+            if not ask_yes_no("🌐 No Internet", "ไม่พบสัญญาณอินเทอร์เน็ต\nต้องการดำเนินการต่อหรือไม่? (Prompt จะถูก copy ไว้)"):
+                return FeatureResult(
+                    status=FeatureStatus.CANCELLED,
+                    message="Offline - blocked by user check"
+                )
         
         try:
             # Get code from clipboard

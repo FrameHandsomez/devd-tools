@@ -268,11 +268,43 @@ class GitCommitFeature(BaseFeature):
             message=f"Opening commit dialog for {project_path.name}..."
         )
     
+    def _check_git_config(self, project_path: Path) -> bool:
+        """Check if user.name and user.email are configured"""
+        import subprocess
+        
+        try:
+            # Check user.name
+            name = subprocess.check_output(
+                ["git", "config", "user.name"],
+                cwd=project_path,
+                text=True
+            ).strip()
+            
+            # Check user.email
+            email = subprocess.check_output(
+                ["git", "config", "user.email"],
+                cwd=project_path,
+                text=True
+            ).strip()
+            
+            return bool(name and email)
+            
+        except subprocess.CalledProcessError:
+            return False
+            
     def _run_commit(self, project_path: Path):
         """Run the actual commit workflow (runs in thread)"""
         
         from ui.dialogs import ask_commit_message, show_notification
         
+        # Check git config
+        if not self._check_git_config(project_path):
+            self._show_notification_async(
+                "❌ Git Config Missing",
+                "Please configure user.name and user.email first"
+            )
+            return
+
         # Ask for commit message
         commit_message = ask_commit_message(f"Commit to {project_path.name}")
         
