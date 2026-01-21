@@ -56,6 +56,25 @@ class GitCommitFeature(BaseFeature):
                 message=f"Unknown action: {action}"
             )
     
+    def _normalize_path(self, path_str: str) -> Path:
+        """Normalize path string to proper Path object - handles all formats"""
+        if not path_str:
+            return None
+        
+        # Convert to Path object and resolve to absolute path
+        try:
+            # Replace forward slashes with backslashes for Windows consistency
+            normalized = path_str.replace('/', '\\')
+            path = Path(normalized)
+            
+            # Resolve to get absolute path with consistent format
+            if path.exists():
+                return path.resolve()
+            return path
+        except Exception as e:
+            logger.error(f"Path normalization failed for '{path_str}': {e}")
+            return None
+
     def _commit_workflow(self) -> FeatureResult:
         """Run the full commit workflow with active project"""
         
@@ -74,28 +93,51 @@ class GitCommitFeature(BaseFeature):
         
         # Get active project
         active = self.config_manager.get_active_project(self.CONFIG_KEY)
+        logger.info(f"Active project from config: {active}")
         
-        if active and Path(active["path"]).exists():
-            project_path = Path(active["path"])
+        if active:
+            # Normalize the path for cross-platform compatibility
+            project_path = self._normalize_path(active.get("path", ""))
+            logger.info(f"Normalized project path: {project_path}")
             
-            # Verify it's a git repository
-            if (project_path / ".git").exists():
-                logger.info(f"Using active git project: {active['name']}")
-                return self._run_commit_async(project_path)
+            if project_path and project_path.exists():
+                logger.info(f"Project path exists: {project_path}")
+                
+                # Check for .git folder (try multiple ways)
+                git_folder = project_path / ".git"
+                git_exists = git_folder.exists() or git_folder.is_dir()
+                logger.info(f"Git folder check: {git_folder} -> exists={git_exists}")
+                
+                if git_exists:
+                    logger.info(f"Using active git project: {active.get('name', project_path.name)}")
+                    return self._run_commit_async(project_path)
+                else:
+                    logger.warning(f".git folder not found at {git_folder}")
+                    # Try to find .git in parent directories (in case user selected subfolder)
+                    for parent in project_path.parents:
+                        if (parent / ".git").exists():
+                            logger.info(f"Found .git in parent: {parent}")
+                            return self._run_commit_async(parent)
+            else:
+                logger.warning(f"Active project path does not exist: {project_path}")
         
         # Get all projects
         projects = self.config_manager.get_projects(self.CONFIG_KEY)
+        logger.info(f"All projects: {len(projects) if projects else 0}")
         
         if not projects:
             # No projects saved, ask to add one
+            logger.info("No projects found, prompting to add one")
             return self._add_new_project_async()
         
         # If only one project, use it directly
         if len(projects) == 1:
-            project_path = Path(projects[0]["path"])
-            if project_path.exists() and (project_path / ".git").exists():
-                self.config_manager.set_active_project(self.CONFIG_KEY, str(project_path))
-                return self._run_commit_async(project_path)
+            project_path = self._normalize_path(projects[0].get("path", ""))
+            if project_path and project_path.exists():
+                git_folder = project_path / ".git"
+                if git_folder.exists():
+                    self.config_manager.set_active_project(self.CONFIG_KEY, str(project_path))
+                    return self._run_commit_async(project_path)
         
         # Multiple projects - show selector
         return self._show_project_selector_async()
@@ -199,6 +241,9 @@ class GitCommitFeature(BaseFeature):
             remaining = self.config_manager.get_projects(self.CONFIG_KEY)
             if remaining:
                 self._show_project_selector()
+            else:
+                # No projects left, reset flag so user can add new ones
+                self._is_dialog_open = False
     
     def _add_new_project_async(self) -> FeatureResult:
         """Add a new project (runs in thread)"""
@@ -298,12 +343,15 @@ class GitCommitFeature(BaseFeature):
         from ui.dialogs import ask_commit_message, show_notification
         
         # Check git config
+        logger.info(f"Checking git config for: {project_path}")
         if not self._check_git_config(project_path):
+            logger.warning("Git config check failed - user.name or user.email missing")
             self._show_notification_async(
                 "❌ Git Config Missing",
                 "Please configure user.name and user.email first"
             )
             return
+        logger.info("Git config check passed")
 
         # Ask for commit message
         commit_message = ask_commit_message(f"Commit to {project_path.name}")

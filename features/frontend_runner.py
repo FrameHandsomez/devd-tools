@@ -58,16 +58,35 @@ class FrontendRunnerFeature(BaseFeature):
                 message=f"Unknown action: {action}"
             )
     
+    def _normalize_path(self, path_str: str) -> Path:
+        """Normalize path string to proper Path object - handles all formats"""
+        if not path_str:
+            return None
+        
+        try:
+            # Replace forward slashes with backslashes for Windows consistency
+            normalized = path_str.replace('/', '\\')
+            path = Path(normalized)
+            
+            # Resolve to get absolute path with consistent format
+            if path.exists():
+                return path.resolve()
+            return path
+        except Exception as e:
+            logger.error(f"Path normalization failed for '{path_str}': {e}")
+            return None
+
     def _run_dev_server(self) -> FeatureResult:
         """Run the frontend dev server - quick launch with active project"""
         
         # Get active project first
         active = self.config_manager.get_active_project(self.CONFIG_KEY)
         
-        if active and Path(active["path"]).exists():
-            project_path = Path(active["path"])
-            logger.info(f"Using active project: {active['name']}")
-            return self._start_dev_server(project_path)
+        if active:
+            project_path = self._normalize_path(active.get("path", ""))
+            if project_path and project_path.exists():
+                logger.info(f"Using active project: {active.get('name', project_path.name)}")
+                return self._start_dev_server(project_path)
         
         # Get all projects
         projects = self.config_manager.get_projects(self.CONFIG_KEY)
@@ -78,8 +97,8 @@ class FrontendRunnerFeature(BaseFeature):
         
         # If only one project, use it directly
         if len(projects) == 1:
-            project_path = Path(projects[0]["path"])
-            if project_path.exists():
+            project_path = self._normalize_path(projects[0].get("path", ""))
+            if project_path and project_path.exists():
                 self.config_manager.set_active_project(self.CONFIG_KEY, str(project_path))
                 return self._start_dev_server(project_path)
         
@@ -168,6 +187,9 @@ class FrontendRunnerFeature(BaseFeature):
             remaining = self.config_manager.get_projects(self.CONFIG_KEY)
             if remaining:
                 self._show_project_selector()
+            else:
+                # No projects left, reset flag
+                self._is_dialog_open = False
     
     def _add_new_project_async(self) -> FeatureResult:
         """Add a new project (runs in thread)"""

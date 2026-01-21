@@ -51,27 +51,48 @@ class TerminalQuickFeature(BaseFeature):
                 message=f"Unknown action: {action}"
             )
     
+    def _normalize_path(self, path_str: str) -> Path:
+        """Normalize path string to proper Path object - handles all formats"""
+        if not path_str:
+            return None
+        
+        try:
+            # Replace forward slashes with backslashes for Windows consistency
+            normalized = path_str.replace('/', '\\')
+            path = Path(normalized)
+            
+            # Resolve to get absolute path with consistent format
+            if path.exists():
+                return path.resolve()
+            return path
+        except Exception as e:
+            logger.error(f"Path normalization failed for '{path_str}': {e}")
+            return None
+
     def _open_terminal(self) -> FeatureResult:
         """Open terminal at active project"""
         
         # Get active project
         active = self.config_manager.get_active_project(self.CONFIG_KEY)
         
-        if active and Path(active["path"]).exists():
-            project_path = Path(active["path"])
-            return self._launch_terminal(project_path)
+        if active:
+            project_path = self._normalize_path(active.get("path", ""))
+            if project_path and project_path.exists():
+                return self._launch_terminal(project_path)
         
         # Try frontend project as fallback
         frontend_active = self.config_manager.get_active_project("frontend_project")
-        if frontend_active and Path(frontend_active["path"]).exists():
-            project_path = Path(frontend_active["path"])
-            return self._launch_terminal(project_path)
+        if frontend_active:
+            project_path = self._normalize_path(frontend_active.get("path", ""))
+            if project_path and project_path.exists():
+                return self._launch_terminal(project_path)
         
         # Try git project as fallback
         git_active = self.config_manager.get_active_project("git_project")
-        if git_active and Path(git_active["path"]).exists():
-            project_path = Path(git_active["path"])
-            return self._launch_terminal(project_path)
+        if git_active:
+            project_path = self._normalize_path(git_active.get("path", ""))
+            if project_path and project_path.exists():
+                return self._launch_terminal(project_path)
         
         # No active project - show selector
         return self._show_project_selector_async()

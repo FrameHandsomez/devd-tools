@@ -1,21 +1,21 @@
 {
   "total_key_presses": 0,
-  "total_feature_executions": 10,
+  "total_feature_executions": 53,
   "total_mode_changes": 0,
-  "total_commits": 7,
-  "total_sessions": 5,
+  "total_commits": 28,
+  "total_sessions": 9,
   "total_session_minutes": 0,
   "first_use_date": "2026-01-21T14:18:41.071982",
-  "last_use_date": "2026-01-21T14:50:39.287565",
+  "last_use_date": "2026-01-21T17:26:06.221640",
   "feature_usage": {
-    "git_commit": 7,
-    "shortcut_guide": 3
+    "git_commit": 38,
+    "shortcut_guide": 15
   },
   "mode_usage": {},
   "daily_stats": {
     "2026-01-21": {
       "key_presses": 0,
-      "executions": 10,
+      "executions": 53,
       "mode_changes": 0
     }
   },
