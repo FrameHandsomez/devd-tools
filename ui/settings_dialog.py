@@ -210,7 +210,7 @@ class SettingsDialog:
         
         mode_combo = ttk.Combobox(mode_frame, textvariable=self.mode_var, values=self.modes, state="readonly", width=20)
         mode_combo.pack(side="left", padx=10)
-        mode_combo.bind('<<ComboboxSelected>>', lambda e: self._refresh_bindings_list())
+        mode_combo.bind('<<ComboboxSelected>>', self._on_mode_change)
         
         # Bindings list
         self._create_section_header(content, "📋 Bindings for this Mode")
@@ -248,6 +248,15 @@ class SettingsDialog:
         # Load initial bindings
         self._refresh_bindings_list()
     
+    def _on_mode_change(self, event):
+        """Handle mode selection change"""
+        # Ensure we use the selected value from combobox
+        widget = event.widget
+        selected_mode = widget.get()
+        self.mode_var.set(selected_mode)
+        logger.info(f"Mode changed to: {selected_mode}")
+        self._refresh_bindings_list()
+
     def _refresh_bindings_list(self):
         """Refresh the bindings list for selected mode"""
         # Clear existing items
@@ -255,7 +264,9 @@ class SettingsDialog:
             self.bindings_tree.delete(item)
         
         mode = self.mode_var.get()
+        logger.info(f"Refreshing bindings for mode: {mode}")
         bindings = self.config_manager.get_mode_bindings(mode)
+        logger.info(f"Found {len(bindings)} bindings")
         
         for key, binding in bindings.items():
             feature = binding.get("feature", "")
@@ -346,7 +357,8 @@ class SettingsDialog:
         # Key
         tk.Label(content, text="Key:", font=("Segoe UI", 10), fg="white", bg="#1a1a2e").grid(row=0, column=0, sticky="w", pady=5)
         key_var = tk.StringVar(value=key)
-        key_combo = ttk.Combobox(content, textvariable=key_var, values=["f9", "f10", "f11", "f12"], width=20)
+        all_f_keys = [f"f{i}" for i in range(1, 13)]
+        key_combo = ttk.Combobox(content, textvariable=key_var, values=all_f_keys, width=20)
         key_combo.grid(row=0, column=1, pady=5)
         
         # Pattern

@@ -1,79 +1,120 @@
-# Developer Macro Engine 🚀
+# 🎮 Developer Macro Engine (v2.0)
 
-ซอฟต์แวร์ Macro สำหรับ Developer ทำ Workflow Automation บน Windows
+A powerful Python-based macro engine designed to boost developer productivity. Automate repetitive tasks, manage multiple projects, and code faster with AI assistance.
 
-## 🎯 Features
+## ✨ Key Features
 
-| ปุ่ม | กดสั้น | กดค้าง | กด 3 ครั้ง |
-|------|--------|--------|------------|
-| **F9** | Clone Git Project | Update Project (git pull) | - |
-| **F10** | Run Dev Server | - | Reset Path |
-| **F11** | Switch Mode | - | - |
+### 🚀 1. Multi-Project Management
+Switch between projects instantly without changing configuration files.
+- **Frontend Runner:** Manage multiple `npm run dev` servers.
+- **Git Workflow:** Commit & Push to different repositories easily.
 
-## 🛠️ Installation
+### 🖥️ 2. Terminal Quick Actions (NEW!)
+Open a terminal at your project's root instantly.
+- **Windows Terminal Support:** Opens in a new tab if available.
+- **Project Selection:** Choose which project to open using **SCRIPT Mode**.
 
-```powershell
-# Clone repo
-git clone https://github.com/framehandsomez/jr-dev.git
-cd jr-dev
+### 📊 3. Statistics Dashboard (NEW!)
+Track your productivity habits.
+- **Usage Stats:** Total commits, features used, and session time.
+- **Streak Tracker:** Keep your coding streak alive!
+- **Dashboard:** View simple graphs in Settings > **📊 Stats**.
 
-# Install dependencies (ใช้ uv)
-uv venv
-uv pip install pynput pystray Pillow pywin32
+### ⌨️ 4. Customizable Hotkeys (NEW!)
+Choose which Function keys (F1-F12) to monitor.
+- **Configurable:** Enable only the keys you need in **Settings**.
+- **Mode Switching:** Use F11 to cycle through modes.
 
-# หรือใช้ pip
-pip install -r requirements.txt
-```
+### 🤖 5. AI Assistant
+Integrated prompts for ChatGPT to help with:
+- **Code Review:** Security & Performance checks.
+- **Refactoring:** Clean code suggestions.
+- **Bug Fixing:** Smart debugging help.
 
-## 🚀 Usage
+---
 
-```powershell
-# Activate virtual environment
-.\.venv\Scripts\activate
+## 🕹️ Modes & Controls
 
-# Run
-python main.py
-```
+Cycle through modes using **F11**. Show current bindings with **F12**.
+*(Default configuration uses F9-F10 for actions)*
 
-## 📁 Project Structure
+### 💻 1. DEV Mode (Frontend Development)
+| Key | Press | Action |
+| :--- | :--- | :--- |
+| **F9** | Short | **Start Dev Server** (npm run dev) |
+| **F9** | Long | **Stop Server** |
+| **F10** | Short | **Run Active Project** |
+| **F10** | Long | **Select Project** (Switch active project) |
+| **F10** | 3x Click | **Manage Projects** (Add/Remove) |
 
-```
-macro-engine/
-├── main.py              # Entry point
-├── runtime/             # Bootstrap layer
-├── core/                # Core modules (headless)
-│   ├── events/          # Event routing
-│   ├── modes/           # Mode manager
-│   ├── commands/        # Command executor
-│   └── features/        # Feature registry
-├── features/            # Feature plugins
-├── inputs/              # Input providers
-├── ui/                  # Optional UI layer
-└── config/
-    └── macros.json      # Configuration
-```
+### 🐙 2. GIT Mode (Version Control)
+| Key | Press | Action |
+| :--- | :--- | :--- |
+| **F9** | Short | **Git Status** |
+| **F9** | Long | **Git Pull** |
+| **F10** | Short | **Quick Commit** (Add . + Commit + Push) |
+| **F10** | Long | **Select Repository** |
+| **F10** | 3x Click | **Manage Repositories** |
 
-## ⚙️ Configuration
+### 📜 3. SCRIPT Mode (Terminal & Ops)
+| Key | Press | Action |
+| :--- | :--- | :--- |
+| **F9** | Short | **Open Terminal Here** (Active Project) |
+| **F9** | Long | **Select Project** to Open |
+| **F10** | Short | **Open Terminal Here** (Active Project) |
+| **F10** | Long | **Select Project** to Open |
 
-แก้ไข `config/macros.json` เพื่อ:
-- เปลี่ยน key bindings
-- เพิ่ม/ลบ modes
-- ปรับ timing settings
+### 🤖 4. AI Mode (Assistant)
+| Key | Press | Action |
+| :--- | :--- | :--- |
+| **F9** | Short | **Code Review & Secure** |
+| **F9** | Long | **Explain Code** |
+| **F10** | Short | **Bug Fix** |
+| **F10** | Long | **Refactor Code** |
+*(Copies code from clipboard -> Formats prompt -> Opens ChatGPT)*
 
-## 🎮 Modes
+---
 
-- **DEV**: Development workflows
-- **GIT**: Git operations
-- **AI**: AI assistant (กำลังพัฒนา)
-- **SCRIPT**: Custom scripts (กำลังพัฒนา)
+## ⚙️ Setup & Installation
 
-## 🔌 Hardware Support
+1.  **Clone Repository:**
+    ```bash
+    git clone https://github.com/yourusername/jr-dev.git
+    cd jr-dev
+    ```
 
-รองรับ USB HID devices:
-- Physical Keyboard
-- Macro Pad (USB HID)
-- Arduino (ATmega32U4)
+2.  **Install Dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+    *(Requires: `pynput`, `pyperclip`, `Pillow`, `ttkbootstrap`)*
 
-## 📝 License
+3.  **Run Application:**
+    ```bash
+    python main.py
+    ```
 
-MIT
+4.  **Auto-Start:**
+    Enable "Start on Boot" in Settings to run automatically with Windows.
+
+---
+
+## 🛠️ Configuration
+
+Right-click the **Tray Icon** (Taskbar) -> **Settings**
+- **General:** Customize Monitored Keys (F1-F12), Timing.
+- **Active Keys:** Select which Function keys to listen to.
+- **Stats:** View your usage statistics.
+- **Backup:** Export/Import your settings and project lists.
+
+## 📦 Project Structure
+
+- `core/`: Main engine logic (Events, Modes, Features)
+- `features/`: Individual feature implementations (Git, AI, Runner)
+- `inputs/`: Keyboard/Input listeners
+- `ui/`: Settings dialogs and System Tray
+- `utils/`: Helpers (Logger, Statistics, Windows API)
+- `config/`: JSON configuration files
+
+---
+**Developed by Framex | v2.0.0**
