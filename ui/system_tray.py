@@ -99,6 +99,7 @@ class SystemTrayUI:
                 checked=lambda item: is_autostart
             ),
             MenuItem("Reload Config", self._on_reload_config),
+            MenuItem("🔄 Check for Updates", self._on_check_updates),
             Menu.SEPARATOR,
             MenuItem("Exit", self._on_exit)
         )
@@ -134,6 +135,50 @@ class SystemTrayUI:
             
             # Refresh menu
             self.icon.menu = self._create_menu()
+    
+    def _on_check_updates(self, icon=None, item=None):
+        """Check for updates from GitHub"""
+        import threading
+        
+        def check():
+            from utils.updater import get_updater
+            from ui.dialogs import show_notification, ask_yes_no
+            
+            updater = get_updater()
+            
+            show_notification(
+                title="🔄 Checking...",
+                message="Looking for updates...",
+                duration=2000
+            )
+            
+            has_update, message = updater.check_for_updates()
+            
+            if has_update:
+                # Ask user if they want to update
+                if ask_yes_no("🔄 Update Available", f"{message}\n\nDownload and install now?"):
+                    success, pull_msg = updater.pull_updates()
+                    
+                    if success:
+                        show_notification(
+                            title="✅ Updated!",
+                            message="Please restart the application.",
+                            duration=5000
+                        )
+                    else:
+                        show_notification(
+                            title="❌ Update Failed",
+                            message=pull_msg,
+                            duration=5000
+                        )
+            else:
+                show_notification(
+                    title="✅ Up to Date",
+                    message=message,
+                    duration=3000
+                )
+        
+        threading.Thread(target=check, daemon=True).start()
     
     def _on_show_settings(self):
         """Show settings dialog"""

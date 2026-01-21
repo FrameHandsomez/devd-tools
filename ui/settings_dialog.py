@@ -981,8 +981,15 @@ class SettingsDialog:
         info_frame = tk.Frame(content, bg="#2a2a4e", padx=20, pady=15)
         info_frame.pack(fill="x", pady=15)
         
+        # Get version dynamically
+        try:
+            from utils.updater import get_version
+            version = get_version()
+        except:
+            version = "2.0.0"
+        
         info_items = [
-            ("Version:", "2.0.0"),
+            ("Version:", version),
             ("Python:", "3.11+"),
             ("Platform:", "Windows"),
             ("License:", "MIT"),
