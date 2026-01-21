@@ -121,6 +121,17 @@
     "auto_start": false
   },
   "saved_paths": {
-    "frontend_project": "C:\\Users\\WHITEPERx\\Documents\\GitHub\\deptx"
+    "frontend_project": "C:\\Users\\WHITEPERx\\Documents\\GitHub\\deptx",
+    "frontend_project_list": [
+      {
+        "name": "deptx",
+        "path": "C:/Users/Framex/Documents/GitHub/deptx"
+      },
+      {
+        "name": "jr-dev",
+        "path": "C:/Users/Framex/Documents/GitHub/jr-dev"
+      }
+    ],
+    "frontend_project_active": "C:\\Users\\Framex\\Documents\\GitHub\\jr-dev"
   }
 }

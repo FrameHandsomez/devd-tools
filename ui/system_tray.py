@@ -59,7 +59,15 @@ class SystemTrayUI:
         return image
     
     def _get_mode_color(self) -> str:
-        """Get color based on current mode"""
+        """Get color based on current mode or custom setting"""
+        # Check for custom color in settings
+        settings = self.mode_manager.config_manager.get_settings()
+        custom_color = settings.get("tray_icon_color")
+        
+        if custom_color and custom_color != "auto":
+            return custom_color
+        
+        # Default mode-based colors
         mode_colors = {
             "DEV": "#4CAF50",    # Green
             "GIT": "#FF9800",    # Orange

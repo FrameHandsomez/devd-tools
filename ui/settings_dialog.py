@@ -75,7 +75,7 @@ class SettingsDialog:
         style = ttk.Style()
         style.theme_use('clam')
         style.configure('TNotebook', background='#1a1a2e', borderwidth=0)
-        style.configure('TNotebook.Tab', background='#2a2a4e', foreground='white', padding=[15, 8], font=('Segoe UI', 10))
+        style.configure('TNotebook.Tab', background='#2a2a4e', foreground='white', padding=[12, 6], font=('Segoe UI', 9))
         style.map('TNotebook.Tab', background=[('selected', '#4CAF50')], foreground=[('selected', 'white')])
         
         # Notebook (tabs)
@@ -86,6 +86,9 @@ class SettingsDialog:
         self._create_general_tab()
         self._create_keybindings_tab()
         self._create_projects_tab()
+        self._create_theme_tab()
+        self._create_backup_tab()
+        self._create_about_tab()
         
         # Buttons
         btn_frame = tk.Frame(self.dialog, bg="#1a1a2e")
@@ -486,12 +489,412 @@ class SettingsDialog:
         if folder:
             self.clone_path_var.set(folder)
     
+    # ==================== Theme Tab ====================
+    
+    def _create_theme_tab(self):
+        """Create Theme settings tab"""
+        tab = tk.Frame(self.notebook, bg="#1a1a2e")
+        self.notebook.add(tab, text="🎨 Theme")
+        
+        content = tk.Frame(tab, bg="#1a1a2e", padx=20, pady=15)
+        content.pack(fill="both", expand=True)
+        
+        self._create_section_header(content, "🎨 Tray Icon Color")
+        
+        # Color options
+        colors = [
+            ("#4CAF50", "Green (DEV)", "DEV"),
+            ("#FF9800", "Orange (GIT)", "GIT"),
+            ("#9C27B0", "Purple (AI)", "AI"),
+            ("#2196F3", "Blue (SCRIPT)", "SCRIPT"),
+            ("#E91E63", "Pink", "custom"),
+            ("#00BCD4", "Cyan", "custom2"),
+            ("#FF5722", "Red", "custom3"),
+            ("#607D8B", "Gray", "custom4"),
+        ]
+        
+        # Get current color
+        current_color = self.settings.get("tray_icon_color", "#4CAF50")
+        self.icon_color_var = tk.StringVar(value=current_color)
+        
+        color_frame = tk.Frame(content, bg="#1a1a2e")
+        color_frame.pack(fill="x", pady=10)
+        
+        tk.Label(
+            color_frame,
+            text="Select icon color:",
+            font=("Segoe UI", 10),
+            fg="white",
+            bg="#1a1a2e"
+        ).pack(anchor="w", pady=(0, 10))
+        
+        # Color buttons grid
+        btn_grid = tk.Frame(color_frame, bg="#1a1a2e")
+        btn_grid.pack(fill="x")
+        
+        self.color_buttons = {}
+        for i, (color, name, _) in enumerate(colors):
+            row = i // 4
+            col = i % 4
+            
+            btn = tk.Button(
+                btn_grid,
+                bg=color,
+                width=4,
+                height=2,
+                relief="solid",
+                bd=2,
+                command=lambda c=color: self._select_color(c)
+            )
+            btn.grid(row=row, column=col, padx=5, pady=5)
+            self.color_buttons[color] = btn
+            
+            # Label
+            tk.Label(
+                btn_grid,
+                text=name.split()[0],
+                font=("Segoe UI", 8),
+                fg="#888888",
+                bg="#1a1a2e"
+            ).grid(row=row+2, column=col)
+        
+        # Preview
+        preview_frame = tk.Frame(content, bg="#1a1a2e")
+        preview_frame.pack(fill="x", pady=20)
+        
+        tk.Label(
+            preview_frame,
+            text="Preview:",
+            font=("Segoe UI", 10),
+            fg="white",
+            bg="#1a1a2e"
+        ).pack(side="left")
+        
+        self.color_preview = tk.Label(
+            preview_frame,
+            text="  ●  ",
+            font=("Segoe UI", 24),
+            fg=current_color,
+            bg="#1a1a2e"
+        )
+        self.color_preview.pack(side="left", padx=10)
+        
+        # Note
+        tk.Label(
+            content,
+            text="หมายเหตุ: สี icon จะเปลี่ยนหลังรีสตาร์ทโปรแกรม",
+            font=("Segoe UI", 9),
+            fg="#888888",
+            bg="#1a1a2e"
+        ).pack(anchor="w", pady=10)
+    
+    def _select_color(self, color: str):
+        """Select a color for tray icon"""
+        self.icon_color_var.set(color)
+        self.color_preview.config(fg=color)
+        self.settings["tray_icon_color"] = color
+        
+        # Update button borders
+        for c, btn in self.color_buttons.items():
+            if c == color:
+                btn.config(relief="sunken", bd=3)
+            else:
+                btn.config(relief="solid", bd=2)
+    
+    # ==================== Backup Tab ====================
+    
+    def _create_backup_tab(self):
+        """Create Backup/Export tab"""
+        tab = tk.Frame(self.notebook, bg="#1a1a2e")
+        self.notebook.add(tab, text="📤 Backup")
+        
+        content = tk.Frame(tab, bg="#1a1a2e", padx=20, pady=15)
+        content.pack(fill="both", expand=True)
+        
+        # Export section
+        self._create_section_header(content, "📤 Export Settings")
+        
+        export_frame = tk.Frame(content, bg="#1a1a2e")
+        export_frame.pack(fill="x", pady=10)
+        
+        tk.Label(
+            export_frame,
+            text="Export all settings to a backup file:",
+            font=("Segoe UI", 10),
+            fg="white",
+            bg="#1a1a2e"
+        ).pack(anchor="w", pady=5)
+        
+        tk.Button(
+            export_frame,
+            text="📤 Export to File...",
+            command=self._export_config,
+            font=("Segoe UI", 10),
+            bg="#2196F3",
+            fg="white",
+            width=20
+        ).pack(anchor="w", pady=5)
+        
+        # Import section
+        self._create_section_header(content, "📥 Import Settings")
+        
+        import_frame = tk.Frame(content, bg="#1a1a2e")
+        import_frame.pack(fill="x", pady=10)
+        
+        tk.Label(
+            import_frame,
+            text="Restore settings from a backup file:",
+            font=("Segoe UI", 10),
+            fg="white",
+            bg="#1a1a2e"
+        ).pack(anchor="w", pady=5)
+        
+        tk.Button(
+            import_frame,
+            text="📥 Import from File...",
+            command=self._import_config,
+            font=("Segoe UI", 10),
+            bg="#FF9800",
+            fg="white",
+            width=20
+        ).pack(anchor="w", pady=5)
+        
+        # Reset section
+        self._create_section_header(content, "🔄 Reset")
+        
+        reset_frame = tk.Frame(content, bg="#1a1a2e")
+        reset_frame.pack(fill="x", pady=10)
+        
+        tk.Label(
+            reset_frame,
+            text="Reset all settings to defaults:",
+            font=("Segoe UI", 10),
+            fg="white",
+            bg="#1a1a2e"
+        ).pack(anchor="w", pady=5)
+        
+        tk.Button(
+            reset_frame,
+            text="🔄 Reset to Defaults",
+            command=self._reset_to_defaults,
+            font=("Segoe UI", 10),
+            bg="#ff6b6b",
+            fg="white",
+            width=20
+        ).pack(anchor="w", pady=5)
+    
+    def _export_config(self):
+        """Export config to file"""
+        import json
+        from datetime import datetime
+        
+        # Generate filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        default_name = f"macro_engine_backup_{timestamp}.json"
+        
+        filepath = filedialog.asksaveasfilename(
+            title="Export Settings",
+            defaultextension=".json",
+            filetypes=[("JSON files", "*.json")],
+            initialfile=default_name
+        )
+        
+        if filepath:
+            try:
+                # Get full config
+                config_data = {
+                    "version": "2.0",
+                    "exported_at": datetime.now().isoformat(),
+                    "modes": self.config_manager.get_modes(),
+                    "settings": self.settings,
+                    "saved_paths": self.config_manager.get("saved_paths", {})
+                }
+                
+                with open(filepath, "w", encoding="utf-8") as f:
+                    json.dump(config_data, f, indent=2, ensure_ascii=False)
+                
+                messagebox.showinfo("Export Success", f"Settings exported to:\n{filepath}")
+                logger.info(f"Config exported to: {filepath}")
+                
+            except Exception as e:
+                messagebox.showerror("Export Error", f"Failed to export: {e}")
+                logger.error(f"Export error: {e}")
+    
+    def _import_config(self):
+        """Import config from file"""
+        import json
+        
+        filepath = filedialog.askopenfilename(
+            title="Import Settings",
+            filetypes=[("JSON files", "*.json")]
+        )
+        
+        if filepath:
+            try:
+                with open(filepath, "r", encoding="utf-8") as f:
+                    imported = json.load(f)
+                
+                # Validate
+                if "settings" not in imported and "modes" not in imported:
+                    messagebox.showerror("Invalid File", "This doesn't look like a valid backup file.")
+                    return
+                
+                if not messagebox.askyesno("Confirm Import", 
+                    "This will replace all current settings.\nAre you sure?"):
+                    return
+                
+                # Apply imported settings
+                if "settings" in imported:
+                    self.settings = imported["settings"]
+                    self.config_manager.save_settings(self.settings)
+                
+                if "modes" in imported:
+                    current_config = self.config_manager._config
+                    current_config["modes"] = imported["modes"]
+                    self.config_manager.save()
+                
+                if "saved_paths" in imported:
+                    current_config = self.config_manager._config
+                    current_config["saved_paths"] = imported["saved_paths"]
+                    self.config_manager.save()
+                
+                messagebox.showinfo("Import Success", 
+                    "Settings imported successfully!\nPlease restart the application.")
+                logger.info(f"Config imported from: {filepath}")
+                
+            except Exception as e:
+                messagebox.showerror("Import Error", f"Failed to import: {e}")
+                logger.error(f"Import error: {e}")
+    
+    def _reset_to_defaults(self):
+        """Reset all settings to defaults"""
+        if not messagebox.askyesno("Confirm Reset", 
+            "This will reset ALL settings to defaults.\nAre you sure?"):
+            return
+        
+        # Reset settings
+        self.settings = {
+            "long_press_ms": 800,
+            "multi_press_window_ms": 500,
+            "multi_press_count": 3,
+            "default_clone_path": "C:\\Projects",
+            "notification_enabled": True,
+            "auto_start": False,
+            "tray_icon_color": "#4CAF50"
+        }
+        
+        # Update UI
+        self.long_press_ms_var.set(800)
+        self.multi_press_window_ms_var.set(500)
+        self.multi_press_count_var.set(3)
+        self.notif_var.set(True)
+        self.autostart_var.set(False)
+        self.clone_path_var.set("C:\\Projects")
+        
+        messagebox.showinfo("Reset Complete", "Settings reset to defaults.")
+    
+    # ==================== About Tab ====================
+    
+    def _create_about_tab(self):
+        """Create About tab"""
+        tab = tk.Frame(self.notebook, bg="#1a1a2e")
+        self.notebook.add(tab, text="ℹ️ About")
+        
+        content = tk.Frame(tab, bg="#1a1a2e", padx=20, pady=15)
+        content.pack(fill="both", expand=True)
+        
+        # Logo/Title
+        title_frame = tk.Frame(content, bg="#1a1a2e")
+        title_frame.pack(pady=20)
+        
+        tk.Label(
+            title_frame,
+            text="🎮",
+            font=("Segoe UI", 48),
+            fg="white",
+            bg="#1a1a2e"
+        ).pack()
+        
+        tk.Label(
+            title_frame,
+            text="Macro Engine",
+            font=("Segoe UI", 18, "bold"),
+            fg="white",
+            bg="#1a1a2e"
+        ).pack()
+        
+        tk.Label(
+            title_frame,
+            text="Developer Productivity Tool",
+            font=("Segoe UI", 10),
+            fg="#888888",
+            bg="#1a1a2e"
+        ).pack()
+        
+        # Version info
+        info_frame = tk.Frame(content, bg="#2a2a4e", padx=20, pady=15)
+        info_frame.pack(fill="x", pady=15)
+        
+        info_items = [
+            ("Version:", "2.0.0"),
+            ("Python:", "3.11+"),
+            ("Platform:", "Windows"),
+            ("License:", "MIT"),
+        ]
+        
+        for i, (label, value) in enumerate(info_items):
+            row = tk.Frame(info_frame, bg="#2a2a4e")
+            row.pack(fill="x", pady=2)
+            
+            tk.Label(
+                row,
+                text=label,
+                font=("Segoe UI", 10),
+                fg="#888888",
+                bg="#2a2a4e",
+                width=12,
+                anchor="w"
+            ).pack(side="left")
+            
+            tk.Label(
+                row,
+                text=value,
+                font=("Consolas", 10),
+                fg="#4CAF50",
+                bg="#2a2a4e"
+            ).pack(side="left")
+        
+        # Credits
+        tk.Label(
+            content,
+            text="Made with ❤️ by Framex",
+            font=("Segoe UI", 10),
+            fg="#888888",
+            bg="#1a1a2e"
+        ).pack(pady=15)
+        
+        # GitHub link (display only)
+        tk.Label(
+            content,
+            text="github.com/FrameHandsomez/jr-dev",
+            font=("Segoe UI", 9),
+            fg="#4CAF50",
+            bg="#1a1a2e",
+            cursor="hand2"
+        ).pack()
+    
+    # ==================== Save/Cancel ====================
+    
     def _on_save(self):
         """Save all settings"""
         # Update settings
         self.settings["notification_enabled"] = self.notif_var.get()
         self.settings["auto_start"] = self.autostart_var.get()
         self.settings["default_clone_path"] = self.clone_path_var.get()
+        
+        # Save icon color if set
+        if hasattr(self, 'icon_color_var'):
+            self.settings["tray_icon_color"] = self.icon_color_var.get()
         
         # Handle auto-start
         try:
@@ -527,3 +930,4 @@ def show_settings_dialog(config_manager, on_save: Optional[Callable] = None) -> 
     """Show the settings dialog."""
     dialog = SettingsDialog(config_manager, on_save)
     return dialog.show()
+

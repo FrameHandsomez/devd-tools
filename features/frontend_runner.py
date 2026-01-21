@@ -1,12 +1,14 @@
 """
 Frontend Runner Feature - Run dev server for frontend projects
-With multi-project support
+With multi-project support and non-blocking dialogs
 
 Actions:
 - run_dev: Run the dev server (select from saved projects or add new)
+- select: Show project selector
 - reset_path: Reset and manage projects (triggered by multi-press)
 """
 
+import threading
 from pathlib import Path
 from core.features.base_feature import BaseFeature, FeatureResult, FeatureStatus
 from core.events.input_event import InputEvent, PressType
@@ -30,16 +32,26 @@ class FrontendRunnerFeature(BaseFeature):
     supported_patterns = [PressType.SHORT, PressType.LONG, PressType.MULTI]
     
     CONFIG_KEY = "frontend_project"
+    _dialog_lock = threading.Lock()
+    _is_dialog_open = False
     
     def execute(self, event: InputEvent, action: str) -> FeatureResult:
         """Execute the run_dev or reset_path action"""
         
+        # Prevent multiple dialogs
+        if self._is_dialog_open:
+            logger.warning("Dialog already open, ignoring request")
+            return FeatureResult(
+                status=FeatureStatus.CANCELLED,
+                message="Dialog already open"
+            )
+        
         if action == "run_dev":
             return self._run_dev_server()
         elif action == "select":
-            return self._show_project_selector()
+            return self._show_project_selector_async()
         elif action == "reset_path":
-            return self._show_project_selector()
+            return self._show_project_selector_async()
         else:
             return FeatureResult(
                 status=FeatureStatus.ERROR,
@@ -62,7 +74,7 @@ class FrontendRunnerFeature(BaseFeature):
         
         if not projects:
             # No projects saved, ask to add one
-            return self._add_new_project()
+            return self._add_new_project_async()
         
         # If only one project, use it directly
         if len(projects) == 1:
@@ -72,10 +84,27 @@ class FrontendRunnerFeature(BaseFeature):
                 return self._start_dev_server(project_path)
         
         # Multiple projects - show selector
-        return self._show_project_selector()
+        return self._show_project_selector_async()
     
-    def _show_project_selector(self) -> FeatureResult:
-        """Show project selection dialog"""
+    def _show_project_selector_async(self) -> FeatureResult:
+        """Show project selection dialog in a separate thread"""
+        
+        def run_dialog():
+            self._is_dialog_open = True
+            try:
+                self._show_project_selector()
+            finally:
+                self._is_dialog_open = False
+        
+        threading.Thread(target=run_dialog, daemon=True).start()
+        
+        return FeatureResult(
+            status=FeatureStatus.SUCCESS,
+            message="Opening project selector..."
+        )
+    
+    def _show_project_selector(self):
+        """Show project selection dialog (runs in thread)"""
         
         from ui.dialogs import ask_project_selection, show_notification
         
@@ -89,10 +118,8 @@ class FrontendRunnerFeature(BaseFeature):
         )
         
         if not result:
-            return FeatureResult(
-                status=FeatureStatus.CANCELLED,
-                message="User cancelled project selection"
-            )
+            logger.info("User cancelled project selection")
+            return
         
         action = result["action"]
         
@@ -101,14 +128,16 @@ class FrontendRunnerFeature(BaseFeature):
             project_path = Path(project["path"])
             
             if not project_path.exists():
-                return FeatureResult(
-                    status=FeatureStatus.ERROR,
-                    message=f"Project path not found: {project_path}"
+                show_notification(
+                    title="❌ Error",
+                    message=f"Path not found: {project_path}",
+                    duration=3000
                 )
+                return
             
             # Set as active and run
             self.config_manager.set_active_project(self.CONFIG_KEY, str(project_path))
-            return self._start_dev_server(project_path)
+            self._start_dev_server(project_path)
         
         elif action == "add":
             path = result["path"]
@@ -120,10 +149,10 @@ class FrontendRunnerFeature(BaseFeature):
                 duration=2000
             )
             
-            # Ask again to select or run immediately
+            # Set as active and run
             project_path = Path(path)
             self.config_manager.set_active_project(self.CONFIG_KEY, path)
-            return self._start_dev_server(project_path)
+            self._start_dev_server(project_path)
         
         elif action == "remove":
             project = result["project"]
@@ -138,30 +167,35 @@ class FrontendRunnerFeature(BaseFeature):
             # Show selector again if there are more projects
             remaining = self.config_manager.get_projects(self.CONFIG_KEY)
             if remaining:
-                return self._show_project_selector()
-            
-            return FeatureResult(
-                status=FeatureStatus.SUCCESS,
-                message="Project removed"
-            )
+                self._show_project_selector()
+    
+    def _add_new_project_async(self) -> FeatureResult:
+        """Add a new project (runs in thread)"""
+        
+        def run_dialog():
+            self._is_dialog_open = True
+            try:
+                self._add_new_project()
+            finally:
+                self._is_dialog_open = False
+        
+        threading.Thread(target=run_dialog, daemon=True).start()
         
         return FeatureResult(
-            status=FeatureStatus.ERROR,
-            message=f"Unknown action: {action}"
+            status=FeatureStatus.SUCCESS,
+            message="Opening folder selector..."
         )
     
-    def _add_new_project(self) -> FeatureResult:
-        """Add a new project"""
+    def _add_new_project(self):
+        """Add a new project (runs in thread)"""
         
         from ui.dialogs import ask_folder_path, show_notification
         
         project_path = ask_folder_path("Select frontend project folder")
         
         if not project_path:
-            return FeatureResult(
-                status=FeatureStatus.CANCELLED,
-                message="User cancelled path selection"
-            )
+            logger.info("User cancelled folder selection")
+            return
         
         # Add to project list
         self.config_manager.add_project(self.CONFIG_KEY, project_path)
@@ -173,7 +207,7 @@ class FrontendRunnerFeature(BaseFeature):
             duration=2000
         )
         
-        return self._start_dev_server(Path(project_path))
+        self._start_dev_server(Path(project_path))
     
     def _start_dev_server(self, project_path: Path) -> FeatureResult:
         """Start the dev server for the given project"""
@@ -199,11 +233,14 @@ class FrontendRunnerFeature(BaseFeature):
         )
         
         if success:
-            show_notification(
-                title="▶️ Dev Server Started",
-                message=f"{project_path.name}",
-                duration=2000
-            )
+            # Show notification in thread to avoid blocking
+            def notify():
+                show_notification(
+                    title="▶️ Dev Server Started",
+                    message=f"{project_path.name}",
+                    duration=2000
+                )
+            threading.Thread(target=notify, daemon=True).start()
             
             return FeatureResult(
                 status=FeatureStatus.SUCCESS,
