@@ -46,7 +46,9 @@
         "f10": {
           "feature": "git_commit",
           "patterns": {
-            "short": "commit"
+            "short": "commit",
+            "long": "select",
+            "multi_3": "manage"
           }
         },
         "f11": {
