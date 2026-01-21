@@ -151,14 +151,44 @@ class EventRouter:
         
         if feature is None:
             logger.warning(f"No feature found for: {event}")
+            # Show notification for no feature bound
+            self._show_error_notification(
+                title="⚠️ ไม่พบ Feature",
+                message=f"ปุ่ม {event.key_combination.upper()} ไม่มี binding ใน mode นี้"
+            )
             return
         
         # Execute the feature
         try:
             logger.info(f"Executing feature: {feature.name}, action: {action}")
-            feature.execute(event, action)
+            result = feature.execute(event, action)
+            
+            # Check if feature returned an error
+            if result and hasattr(result, 'status'):
+                from core.features.base_feature import FeatureStatus
+                if result.status == FeatureStatus.ERROR:
+                    self._show_error_notification(
+                        title=f"❌ {feature.name} Error",
+                        message=result.message or "Unknown error"
+                    )
+                    
         except Exception as e:
             logger.error(f"Error executing feature {feature.name}: {e}", exc_info=True)
+            self._show_error_notification(
+                title=f"❌ {feature.name} Crashed",
+                message=str(e)[:100]
+            )
+    
+    def _show_error_notification(self, title: str, message: str):
+        """Show error notification in a thread to avoid blocking"""
+        import threading
+        def show():
+            try:
+                from ui.dialogs import show_notification
+                show_notification(title=title, message=message, duration=4000)
+            except Exception:
+                pass
+        threading.Thread(target=show, daemon=True).start()
     
     def cleanup(self):
         """Cancel all pending timers"""

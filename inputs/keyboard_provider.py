@@ -26,11 +26,12 @@ class KeyboardInputProvider(BaseInputProvider):
     
     source_name = "keyboard"
     
-    # Single keys we're listening for: F9, F10, F11
+    # Single keys we're listening for: F9, F10, F11, F12
     MONITORED_KEYS = {
         keyboard.Key.f9: "f9",
         keyboard.Key.f10: "f10",
         keyboard.Key.f11: "f11",
+        keyboard.Key.f12: "f12",
     }
     
     def __init__(self, event_callback: Callable[[InputEvent], None]):

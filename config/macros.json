@@ -24,6 +24,12 @@
           "patterns": {
             "short": "next_mode"
           }
+        },
+        "f12": {
+          "feature": "shortcut_guide",
+          "patterns": {
+            "short": "show"
+          }
         }
       }
     },
@@ -47,16 +53,42 @@
           "patterns": {
             "short": "next_mode"
           }
+        },
+        "f12": {
+          "feature": "shortcut_guide",
+          "patterns": {
+            "short": "show"
+          }
         }
       }
     },
     "AI": {
       "name": "AI Assistant Mode",
       "bindings": {
+        "f9": {
+          "feature": "ai_assistant",
+          "patterns": {
+            "short": "review_secure",
+            "long": "explain_code"
+          }
+        },
+        "f10": {
+          "feature": "ai_assistant",
+          "patterns": {
+            "short": "bug_fix",
+            "long": "refactor"
+          }
+        },
         "f11": {
           "feature": "mode_switcher",
           "patterns": {
             "short": "next_mode"
+          }
+        },
+        "f12": {
+          "feature": "shortcut_guide",
+          "patterns": {
+            "short": "show"
           }
         }
       }
@@ -68,6 +100,12 @@
           "feature": "mode_switcher",
           "patterns": {
             "short": "next_mode"
+          }
+        },
+        "f12": {
+          "feature": "shortcut_guide",
+          "patterns": {
+            "short": "show"
           }
         }
       }

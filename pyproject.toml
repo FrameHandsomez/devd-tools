@@ -9,6 +9,7 @@ dependencies = [
     "pystray>=0.19.4",
     "Pillow>=10.0.0",
     "pywin32>=306",
+    "pyperclip>=1.8.0",
 ]
 
 [dependency-groups]

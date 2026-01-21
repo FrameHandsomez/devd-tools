@@ -138,17 +138,43 @@ class SystemTrayUI:
         )
     
     def _on_reload_config(self):
-        """Reload configuration"""
+        """Reload configuration and update all components"""
         try:
+            # Reload config file
             self.mode_manager.config_manager.load()
+            
+            # Update mode manager with new modes
+            new_modes = list(self.mode_manager.config_manager.get_modes().keys())
+            self.mode_manager.modes = new_modes
+            
+            # Update event router settings
+            from runtime.bootstrap import _engine
+            if _engine and _engine.event_router:
+                settings = self.mode_manager.config_manager.get_settings()
+                _engine.event_router.long_press_ms = settings.get("long_press_ms", 800)
+                _engine.event_router.multi_press_window_ms = settings.get("multi_press_window_ms", 500)
+                _engine.event_router.multi_press_count = settings.get("multi_press_count", 3)
+            
+            # Update tray icon
+            self.update_icon()
+            
             from ui.dialogs import show_notification
             show_notification(
-                title="Config Reloaded",
-                message="Configuration has been reloaded",
+                title="✅ Config Reloaded",
+                message="All settings have been updated",
                 duration=2000
             )
+            
+            logger.info("Configuration hot-reloaded successfully")
+            
         except Exception as e:
             logger.error(f"Error reloading config: {e}")
+            from ui.dialogs import show_notification
+            show_notification(
+                title="❌ Reload Failed",
+                message=str(e)[:100],
+                duration=3000
+            )
     
     def _on_exit(self):
         """Handle exit menu item"""
