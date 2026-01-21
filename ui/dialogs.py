@@ -215,9 +215,11 @@ def show_notification(title: str, message: str, duration: int = 3000):
         message: Notification message
         duration: Duration in milliseconds before auto-close
     """
-    root = _create_root()
-    
     try:
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes('-topmost', True)
+        
         # Create notification window
         notif = tk.Toplevel(root)
         notif.overrideredirect(True)
@@ -252,16 +254,254 @@ def show_notification(title: str, message: str, duration: int = 3000):
             bg="#333333"
         ).pack(anchor="w", pady=(5, 0))
         
+        # Safe close function
+        def safe_close():
+            try:
+                root.quit()
+                root.destroy()
+            except:
+                pass
+        
         # Auto-close
-        notif.after(duration, notif.destroy)
-        notif.after(duration, root.destroy)
+        root.after(duration, safe_close)
         
         # Keep the notification visible
         root.mainloop()
         
     except Exception as e:
         logger.error(f"Error showing notification: {e}")
-        root.destroy()
+
+
+def show_mode_switch_notification(
+    mode_name: str, 
+    guide_lines: list[dict],
+    accent_color: str = "#4CAF50",
+    duration: int = 5000
+):
+    """
+    Show a premium mode switch notification with shortcut guide.
+    
+    Args:
+        mode_name: Name of the new mode
+        guide_lines: List of dicts with 'key', 'pattern', 'action' keys
+        accent_color: Color for the mode header
+        duration: Duration in milliseconds before auto-close
+    """
+    root = _create_root()
+    
+    try:
+        # Colors
+        bg_dark = "#0d1117"
+        bg_card = "#161b22"
+        bg_row_alt = "#1c2129"
+        text_primary = "#f0f6fc"
+        text_secondary = "#8b949e"
+        border_color = "#30363d"
+        
+        # Calculate dimensions
+        num_items = min(len(guide_lines), 6)
+        row_height = 36
+        header_height = 50
+        footer_height = 45
+        padding = 16
+        height = header_height + (num_items * row_height) + footer_height + padding
+        width = 420
+        
+        # Create notification window
+        notif = tk.Toplevel(root)
+        notif.overrideredirect(True)
+        notif.attributes('-topmost', True)
+        notif.attributes('-alpha', 0.0)  # Start invisible for fade in
+        
+        # Position at bottom-right
+        screen_w = notif.winfo_screenwidth()
+        screen_h = notif.winfo_screenheight()
+        x = screen_w - width - 24
+        y = screen_h - height - 70
+        notif.geometry(f"{width}x{height}+{x}+{y}")
+        
+        # Main container with border effect
+        notif.configure(bg=border_color)
+        
+        # Inner container (simulates border)
+        inner = tk.Frame(notif, bg=bg_dark)
+        inner.pack(fill="both", expand=True, padx=1, pady=1)
+        
+        # Header with gradient effect
+        header = tk.Frame(inner, bg=accent_color, height=header_height)
+        header.pack(fill="x")
+        header.pack_propagate(False)
+        
+        # Mode icon and name
+        header_content = tk.Frame(header, bg=accent_color)
+        header_content.pack(expand=True)
+        
+        tk.Label(
+            header_content,
+            text=f"🎯 {mode_name}",
+            font=("Segoe UI", 13, "bold"),
+            fg="white",
+            bg=accent_color
+        ).pack(pady=12)
+        
+        # Content area
+        content = tk.Frame(inner, bg=bg_dark)
+        content.pack(fill="both", expand=True, padx=12, pady=8)
+        
+        # Table header
+        table_header = tk.Frame(content, bg=bg_dark)
+        table_header.pack(fill="x", pady=(0, 6))
+        
+        tk.Label(
+            table_header,
+            text="SHORTCUT",
+            font=("Segoe UI", 8, "bold"),
+            fg=text_secondary,
+            bg=bg_dark
+        ).pack(side="left")
+        
+        tk.Label(
+            table_header,
+            text="ACTION",
+            font=("Segoe UI", 8, "bold"),
+            fg=text_secondary,
+            bg=bg_dark
+        ).pack(side="right")
+        
+        # Show shortcuts in styled rows
+        for i, item in enumerate(guide_lines[:6]):
+            row_bg = bg_row_alt if i % 2 == 1 else bg_card
+            
+            row = tk.Frame(content, bg=row_bg, height=row_height)
+            row.pack(fill="x", pady=1)
+            row.pack_propagate(False)
+            
+            row_inner = tk.Frame(row, bg=row_bg)
+            row_inner.pack(fill="both", expand=True, padx=8)
+            
+            # Left side: Key + Pattern
+            left = tk.Frame(row_inner, bg=row_bg)
+            left.pack(side="left", fill="y")
+            
+            # Key badge with modern style
+            key_badge = tk.Label(
+                left,
+                text=f" {item['key']} ",
+                font=("Consolas", 10, "bold"),
+                fg=accent_color,
+                bg="#2d333b",
+                padx=6,
+                pady=2
+            )
+            key_badge.pack(side="left", pady=6)
+            
+            # Pattern in subtle style
+            pattern_label = tk.Label(
+                left,
+                text=f" {item['pattern']}",
+                font=("Segoe UI", 9),
+                fg=text_secondary,
+                bg=row_bg
+            )
+            pattern_label.pack(side="left", padx=6, pady=6)
+            
+            # Right side: Action
+            action_label = tk.Label(
+                row_inner,
+                text=item['action'],
+                font=("Segoe UI", 10),
+                fg=text_primary,
+                bg=row_bg
+            )
+            action_label.pack(side="right", pady=6)
+        
+        # Footer with F12 hint
+        footer = tk.Frame(inner, bg=bg_dark, height=footer_height)
+        footer.pack(fill="x", side="bottom")
+        footer.pack_propagate(False)
+        
+        # Separator line
+        separator = tk.Frame(footer, bg=border_color, height=1)
+        separator.pack(fill="x")
+        
+        # Footer content
+        footer_content = tk.Frame(footer, bg=bg_dark)
+        footer_content.pack(expand=True)
+        
+        hint_frame = tk.Frame(footer_content, bg=bg_dark)
+        hint_frame.pack(pady=10)
+        
+        tk.Label(
+            hint_frame,
+            text="💡 กด ",
+            font=("Segoe UI", 9),
+            fg=text_secondary,
+            bg=bg_dark
+        ).pack(side="left")
+        
+        tk.Label(
+            hint_frame,
+            text=" F12 ",
+            font=("Consolas", 9, "bold"),
+            fg=accent_color,
+            bg="#2d333b",
+            padx=4
+        ).pack(side="left")
+        
+        tk.Label(
+            hint_frame,
+            text=" เพื่อดู guide แบบละเอียด",
+            font=("Segoe UI", 9),
+            fg=text_secondary,
+            bg=bg_dark
+        ).pack(side="left")
+        
+        # Fade in animation
+        def fade_in(alpha=0.0):
+            try:
+                if alpha < 0.95:
+                    notif.attributes('-alpha', alpha)
+                    notif.after(20, lambda: fade_in(alpha + 0.1))
+                else:
+                    notif.attributes('-alpha', 0.95)
+            except:
+                pass
+        
+        # Safe close function
+        def safe_close():
+            try:
+                root.quit()
+                root.destroy()
+            except:
+                pass
+        
+        # Fade out animation
+        def fade_out(alpha=0.95):
+            try:
+                if alpha > 0.05:
+                    notif.attributes('-alpha', alpha)
+                    notif.after(25, lambda: fade_out(alpha - 0.1))
+                else:
+                    safe_close()
+            except:
+                safe_close()
+        
+        # Start fade in
+        notif.after(10, fade_in)
+        
+        # Schedule fade out before close
+        root.after(duration - 300, fade_out)
+        
+        # Click to close
+        def close_on_click(e):
+            fade_out()
+        
+        notif.bind('<Button-1>', close_on_click)
+        
+        root.mainloop()
+        
+    except Exception as e:
+        logger.error(f"Error showing mode switch notification: {e}")
 
 
 def ask_commit_message(title: str = "Git Commit") -> Optional[str]:

@@ -76,20 +76,55 @@ class ModeSwitcherFeature(BaseFeature):
         except Exception as e:
             logger.warning(f"Could not update tray icon: {e}")
         
-        # Show notification in a thread to avoid blocking
-        import threading
-        def show_notif():
-            try:
-                from ui.dialogs import show_notification
-                show_notification(
-                    title="🔄 Mode Changed",
-                    message=f"{old_mode} → {new_mode}\n{new_mode_name}",
-                    duration=2000
-                )
-            except Exception as e:
-                logger.warning(f"Could not show notification: {e}")
+        # Get mode bindings for guide
+        bindings = self.config_manager.get_mode_bindings(new_mode)
+        guide_lines = []
         
-        threading.Thread(target=show_notif, daemon=True).start()
+        for key, binding in bindings.items():
+            patterns = binding.get("patterns", {})
+            for pattern, action in patterns.items():
+                pattern_display = {
+                    "short": "กดสั้น",
+                    "long": "กดค้าง",
+                    "double": "กด 2 ครั้ง",
+                    "multi_3": "กด 3 ครั้ง"
+                }.get(pattern, pattern)
+                
+                guide_lines.append({
+                    "key": key.upper(),
+                    "pattern": pattern_display,
+                    "action": action
+                })
+        
+        # Mode colors for accent
+        mode_colors = {
+            "DEV": "#4CAF50",
+            "GIT": "#FF9800",
+            "AI": "#9C27B0",
+            "SCRIPT": "#2196F3"
+        }
+        accent_color = mode_colors.get(new_mode, "#4CAF50")
+        
+        # Show simple notification using subprocess to avoid tkinter threading issues
+        import subprocess
+        import sys
+        import json
+        from pathlib import Path
+        
+        popup_runner = Path(__file__).parent.parent / "ui" / "popup_runner.py"
+        data = json.dumps({
+            "title": f"🔄 {new_mode_name}",
+            "message": "กด F12 เพื่อดู guide",
+            "duration": 2000
+        })
+        
+        try:
+            subprocess.Popen(
+                [sys.executable, str(popup_runner), "notification", data],
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+        except Exception as e:
+            logger.debug(f"Could not show notification: {e}")
         
         return FeatureResult(
             status=FeatureStatus.SUCCESS,

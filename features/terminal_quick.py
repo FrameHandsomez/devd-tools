@@ -78,6 +78,7 @@ class TerminalQuickFeature(BaseFeature):
         if active:
             project_path = self._normalize_path(active.get("path", ""))
             if project_path and project_path.exists():
+                logger.info(f"Using terminal_project active: {project_path}")
                 return self._launch_terminal(project_path)
         
         # Try frontend project as fallback
@@ -85,6 +86,7 @@ class TerminalQuickFeature(BaseFeature):
         if frontend_active:
             project_path = self._normalize_path(frontend_active.get("path", ""))
             if project_path and project_path.exists():
+                logger.info(f"Using frontend_project active: {project_path}")
                 return self._launch_terminal(project_path)
         
         # Try git project as fallback
@@ -92,30 +94,41 @@ class TerminalQuickFeature(BaseFeature):
         if git_active:
             project_path = self._normalize_path(git_active.get("path", ""))
             if project_path and project_path.exists():
+                logger.info(f"Using git_project active: {project_path}")
                 return self._launch_terminal(project_path)
         
+        logger.info("No active project found, showing selector")
         # No active project - show selector
         return self._show_project_selector_async()
     
     def _launch_terminal(self, project_path: Path) -> FeatureResult:
         """Launch terminal at the given path"""
         
+        path_str = str(project_path)
+        logger.info(f"Attempting to launch terminal at: {path_str}")
+        
         try:
-            # Open Windows Terminal or cmd
-            # Try Windows Terminal first
-            try:
+            # Try Windows Terminal first (wt.exe)
+            import shutil
+            wt_path = shutil.which("wt")
+            
+            if wt_path:
+                # Windows Terminal is available
+                logger.info(f"Found Windows Terminal at: {wt_path}")
                 subprocess.Popen(
-                    ["wt", "-d", str(project_path)],
+                    f'wt.exe -d "{path_str}"',
+                    shell=True,
+                    creationflags=subprocess.CREATE_NO_WINDOW
+                )
+                logger.info(f"✅ Opened Windows Terminal at: {path_str}")
+            else:
+                # Fallback to PowerShell
+                logger.info("Windows Terminal not found, using PowerShell")
+                subprocess.Popen(
+                    f'start powershell -NoExit -Command "Set-Location -Path \'{path_str}\'"',
                     shell=True
                 )
-                logger.info(f"Opened Windows Terminal at: {project_path}")
-            except Exception:
-                # Fallback to cmd
-                subprocess.Popen(
-                    f'start cmd.exe /K "cd /d {project_path}"',
-                    shell=True
-                )
-                logger.info(f"Opened CMD at: {project_path}")
+                logger.info(f"✅ Opened PowerShell at: {path_str}")
             
             self._show_notification_async(
                 "📱 Terminal Opened",
@@ -129,10 +142,21 @@ class TerminalQuickFeature(BaseFeature):
             
         except Exception as e:
             logger.error(f"Failed to open terminal: {e}")
-            return FeatureResult(
-                status=FeatureStatus.ERROR,
-                message=f"Failed to open terminal: {e}"
-            )
+            
+            # Last resort - try basic cmd
+            try:
+                os.system(f'start cmd /K "cd /d {path_str}"')
+                logger.info(f"✅ Opened CMD at: {path_str}")
+                return FeatureResult(
+                    status=FeatureStatus.SUCCESS,
+                    message=f"Terminal opened at {project_path.name}"
+                )
+            except Exception as e2:
+                logger.error(f"Failed to open CMD: {e2}")
+                return FeatureResult(
+                    status=FeatureStatus.ERROR,
+                    message=f"Failed to open terminal: {e}"
+                )
     
     def _show_project_selector_async(self) -> FeatureResult:
         """Show project selector in thread"""
@@ -156,6 +180,8 @@ class TerminalQuickFeature(BaseFeature):
         
         from ui.dialogs import ask_project_selection, show_notification
         
+        logger.info("Opening project selector dialog...")
+        
         # Combine all projects
         all_projects = []
         
@@ -177,6 +203,8 @@ class TerminalQuickFeature(BaseFeature):
             if not any(x["path"] == p["path"] for x in all_projects):
                 all_projects.append(p)
         
+        logger.info(f"Found {len(all_projects)} projects")
+        
         result = ask_project_selection(
             projects=all_projects,
             title="Open Terminal",
@@ -185,28 +213,34 @@ class TerminalQuickFeature(BaseFeature):
         )
         
         if not result:
+            logger.info("Project selection cancelled")
             return
         
         action = result["action"]
+        logger.info(f"Project selector action: {action}")
         
         if action == "select":
             project = result["project"]
             project_path = Path(project["path"])
+            logger.info(f"Selected project: {project['name']} at {project_path}")
             
             if not project_path.exists():
+                logger.error(f"Path not found: {project_path}")
                 show_notification(
                     title="❌ Error",
-                    message=f"Path not found",
+                    message=f"Path not found: {project_path}",
                     duration=3000
                 )
                 return
             
             # Set as active
             self.config_manager.set_active_project(self.CONFIG_KEY, str(project_path))
+            logger.info(f"Set active project and launching terminal...")
             self._launch_terminal(project_path)
         
         elif action == "add":
             path = result["path"]
+            logger.info(f"Adding new project: {path}")
             self.config_manager.add_project(self.CONFIG_KEY, path)
             self.config_manager.set_active_project(self.CONFIG_KEY, path)
             
@@ -216,7 +250,12 @@ class TerminalQuickFeature(BaseFeature):
                 duration=2000
             )
             
-            self._launch_terminal(Path(path))
+            # Launch terminal for the newly added project
+            logger.info(f"Launching terminal for newly added project: {path}")
+            try:
+                self._launch_terminal(Path(path))
+            except Exception as e:
+                logger.error(f"Failed to launch terminal after add: {e}")
     
     def _show_notification_async(self, title: str, message: str):
         """Show notification in thread"""

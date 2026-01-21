@@ -163,6 +163,9 @@ class EventRouter:
             logger.info(f"Executing feature: {feature.name}, action: {action}")
             result = feature.execute(event, action)
             
+            # Show visual feedback overlay
+            self._show_visual_feedback(event, action, feature.name)
+            
             # Track statistics
             try:
                 from utils.statistics import get_tracker
@@ -185,6 +188,43 @@ class EventRouter:
                 title=f"❌ {feature.name} Crashed",
                 message=str(e)[:100]
             )
+    
+    def _show_visual_feedback(self, event: InputEvent, action: str, feature_name: str):
+        """Show visual feedback overlay for key press"""
+        # Skip feedback for features that have their own popups/notifications
+        skip_features = ["mode_switcher", "shortcut_guide"]
+        if feature_name in skip_features:
+            return
+        
+        try:
+            # Get pattern display name
+            pattern_display = {
+                PressType.SHORT: "กดสั้น",
+                PressType.LONG: "กดค้าง",
+                PressType.DOUBLE: "กด 2 ครั้ง",
+                PressType.MULTI: f"กด {event.press_count} ครั้ง"
+            }.get(event.press_type, "กด")
+            
+            # Get mode color
+            mode_colors = {
+                "DEV": "#4CAF50",
+                "GIT": "#FF9800",
+                "AI": "#9C27B0",
+                "SCRIPT": "#2196F3"
+            }
+            current_mode = self.mode_manager.current_mode
+            accent_color = mode_colors.get(current_mode, "#4CAF50")
+            
+            # Show feedback
+            from ui.visual_feedback import show_key_feedback
+            show_key_feedback(
+                key=event.key_combination,
+                pattern=pattern_display,
+                action=action,
+                accent_color=accent_color
+            )
+        except Exception as e:
+            logger.debug(f"Could not show visual feedback: {e}")
     
     def _show_error_notification(self, title: str, message: str):
         """Show error notification in a thread to avoid blocking"""

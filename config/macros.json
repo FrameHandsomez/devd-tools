@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "current_mode": "GIT",
+  "current_mode": "DEV",
   "modes": {
     "DEV": {
       "name": "Development Mode",
@@ -137,28 +137,22 @@
     "auto_start": false
   },
   "saved_paths": {
-    "frontend_project": "C:\\Users\\WHITEPERx\\Documents\\GitHub\\deptx",
+    "frontend_project": null,
     "frontend_project_list": [
       {
-        "name": "deptx",
-        "path": "C:/Users/Framex/Documents/GitHub/deptx"
-      },
-      {
         "name": "jr-dev",
-        "path": "C:/Users/Framex/Documents/GitHub/jr-dev"
+        "path": "C:/Users/Cite/Documents/Github/jr-dev"
       }
     ],
-    "frontend_project_active": "C:\\Users\\Framex\\Documents\\GitHub\\jr-dev",
-    "git_project_list": [
+    "frontend_project_active": "C:/Users/Cite/Documents/Github/jr-dev",
+    "git_project_list": [],
+    "git_project_active": null,
+    "terminal_project_list": [
       {
-        "name": "jr-dev",
-        "path": "C:/Users/Framex/Documents/GitHub/jr-dev"
-      },
-      {
-        "name": "s11_web",
-        "path": "D:/54842/s11_web"
+        "name": "service-repair",
+        "path": "C:/Users/Cite/Documents/Github/service-repair"
       }
     ],
-    "git_project_active": "C:/Users/Framex/Documents/GitHub/jr-dev"
+    "terminal_project_active": "C:/Users/Cite/Documents/Github/service-repair"
   }
 }
