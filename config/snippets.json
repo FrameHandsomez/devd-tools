@@ -1,0 +1,30 @@
+{
+    "snippets": [
+        {
+            "trigger": "log",
+            "description": "Console Log",
+            "content": "console.log('{{cursor}}');",
+            "tags": [
+                "js",
+                "debug"
+            ]
+        },
+        {
+            "trigger": "comp",
+            "description": "React Functional Component",
+            "content": "const {{name}} = () => {\n  return (\n    <div>\n      {{cursor}}\n    </div>\n  );\n};\n\nexport default {{name}};",
+            "tags": [
+                "react",
+                "component"
+            ]
+        },
+        {
+            "trigger": "pydef",
+            "description": "Python Function",
+            "content": "def {{name}}():\n    \"\"\"\n    {{cursor}}\n    \"\"\"\n    pass",
+            "tags": [
+                "python"
+            ]
+        }
+    ]
+}

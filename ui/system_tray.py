@@ -27,12 +27,33 @@ class SystemTrayUI:
     def __init__(
         self,
         mode_manager: "ModeManager",
-        on_exit: Callable
+        on_exit: Callable,
+        quick_panel = None,
+        on_snippets: Callable = None
     ):
         self.mode_manager = mode_manager
         self.on_exit = on_exit
+        self.quick_panel = quick_panel
+        self.on_snippets = on_snippets
         self.icon: Optional[pystray.Icon] = None
         self._running = False
+        
+        # Set root for QuickPanel if passed
+        if self.quick_panel:
+            # We need to make sure QuickPanel is linked or we just manage its visibility
+            pass
+
+    def _on_toggle_quick_panel(self, icon, item):
+        """Toggle Quick Panel visibility"""
+        if self.quick_panel:
+            self.quick_panel.toggle_visibility()
+            # Refresh menu to update checkmark
+            self.icon.menu = self._create_menu()
+            
+    def _on_launch_snippets(self, icon, item):
+        """Launch Snippet Selector"""
+        if self.on_snippets:
+            self.on_snippets()
     
     def _create_icon_image(self, color: str = "#00FF00") -> Image.Image:
         """Create a simple icon image with the given color"""
@@ -91,6 +112,15 @@ class SystemTrayUI:
                 enabled=False
             ),
             Menu.SEPARATOR,
+            MenuItem(
+                "Toggle Quick Panel",
+                self._on_toggle_quick_panel,
+                checked=lambda item: self.quick_panel.winfo_viewable() if self.quick_panel else False
+            ),
+            MenuItem(
+                "Snippets...",
+                self._on_launch_snippets
+            ),
             MenuItem("Show Status", self._on_show_status),
             MenuItem("⚙️ Settings", self._on_show_settings),
             MenuItem(

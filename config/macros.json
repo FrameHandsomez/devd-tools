@@ -1,10 +1,16 @@
 {
   "version": "2.0",
-  "current_mode": "DEV",
+  "current_mode": "GIT",
   "modes": {
     "DEV": {
       "name": "Development Mode",
       "bindings": {
+        "f8": {
+          "feature": "snippet_tool",
+          "patterns": {
+            "short": "execute"
+          }
+        },
         "f9": {
           "feature": "clone_project",
           "patterns": {
@@ -37,6 +43,12 @@
     "GIT": {
       "name": "Git Mode",
       "bindings": {
+        "f8": {
+          "feature": "snippet_tool",
+          "patterns": {
+            "short": "execute"
+          }
+        },
         "f9": {
           "feature": "git_status",
           "patterns": {
@@ -68,6 +80,12 @@
     "AI": {
       "name": "AI Assistant Mode",
       "bindings": {
+        "f8": {
+          "feature": "snippet_tool",
+          "patterns": {
+            "short": "execute"
+          }
+        },
         "f9": {
           "feature": "ai_assistant",
           "patterns": {
@@ -99,6 +117,12 @@
     "SCRIPT": {
       "name": "Script Mode",
       "bindings": {
+        "f8": {
+          "feature": "snippet_tool",
+          "patterns": {
+            "short": "execute"
+          }
+        },
         "f9": {
           "feature": "terminal_quick",
           "patterns": {
@@ -134,7 +158,14 @@
     "multi_press_count": 3,
     "default_clone_path": "C:\\Projects",
     "notification_enabled": true,
-    "auto_start": false
+    "auto_start": false,
+    "monitored_keys": [
+      "f8",
+      "f9",
+      "f10",
+      "f11",
+      "f12"
+    ]
   },
   "saved_paths": {
     "frontend_project": null,
@@ -142,17 +173,35 @@
       {
         "name": "jr-dev",
         "path": "C:/Users/Cite/Documents/Github/jr-dev"
+      },
+      {
+        "name": "s11_web",
+        "path": "D:/54842/s11_web"
       }
     ],
-    "frontend_project_active": "C:/Users/Cite/Documents/Github/jr-dev",
-    "git_project_list": [],
-    "git_project_active": null,
+    "frontend_project_active": "D:/54842/s11_web",
+    "git_project_list": [
+      {
+        "name": "jr-dev",
+        "path": "%USERPROFILE%/Documents/GitHub/jr-dev"
+      }
+    ],
+    "git_project_active": "%USERPROFILE%/Documents/GitHub/jr-dev",
     "terminal_project_list": [
       {
         "name": "service-repair",
         "path": "C:/Users/Cite/Documents/Github/service-repair"
+      },
+      {
+        "name": "s11_web",
+        "path": "D:/54842/s11_web"
       }
     ],
-    "terminal_project_active": "C:/Users/Cite/Documents/Github/service-repair"
+    "terminal_project_active": "D:/54842/s11_web"
+  },
+  "quick_panel": {
+    "visible": true,
+    "x": 1186,
+    "y": 38
   }
 }

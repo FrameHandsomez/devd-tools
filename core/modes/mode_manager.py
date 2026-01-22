@@ -35,8 +35,14 @@ class ModeManager:
         self.modes = list(config_manager.get_modes().keys())
         self.current_mode = config_manager.get_current_mode()
         
+        self.observers = []
+        
         logger.info(f"Mode Manager initialized with modes: {self.modes}")
         logger.info(f"Current mode: {self.current_mode}")
+        
+    def add_observer(self, callback):
+        """Add a callback function to be notified on mode change"""
+        self.observers.append(callback)
     
     def get_feature_for_event(
         self,
@@ -92,6 +98,14 @@ class ModeManager:
         self.config_manager.set_current_mode(mode)
         
         logger.info(f"Mode switched: {old_mode} → {mode}")
+        
+        # Notify observers
+        for callback in self.observers:
+            try:
+                callback(mode)
+            except Exception as e:
+                logger.error(f"Error notifying observer: {e}")
+                
         return True
     
     def next_mode(self) -> str:

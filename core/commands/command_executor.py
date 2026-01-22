@@ -98,6 +98,12 @@ class CommandExecutor:
     
     def __init__(self):
         self._running_processes: dict[int, subprocess.Popen] = {}
+        self._internal_commands: dict[str, Callable] = {}
+
+    def register_command(self, name: str, callback: Callable):
+        """Register an internal command callack"""
+        self._internal_commands[name] = callback
+        logger.info(f"Registered internal command: {name}")
     
     def _build_command_string(self, command: list[str]) -> str:
         """
@@ -130,7 +136,7 @@ class CommandExecutor:
     
     def execute(
         self,
-        command: list[str],
+        command: "list[str] | str",
         cwd: Optional[Path] = None,
         env: Optional[dict] = None,
         timeout: int = 300,
@@ -140,7 +146,7 @@ class CommandExecutor:
         Execute a command and wait for completion.
         
         Args:
-            command: Command as list of strings, e.g. ["git", "clone", url]
+            command: Command as list of strings OR internal command name string
             cwd: Working directory for the command
             env: Environment variables (merged with current env)
             timeout: Timeout in seconds
@@ -150,7 +156,39 @@ class CommandExecutor:
             CommandResult with status, output, and return code
         """
         import time
+        import shlex
         start_time = time.time()
+        
+        # Check for internal command
+        if isinstance(command, str):
+            if command in self._internal_commands:
+                try:
+                    logger.info(f"Executing internal command: {command}")
+                    self._internal_commands[command]()
+                    duration = int((time.time() - start_time) * 1000)
+                    return CommandResult(
+                        status=CommandStatus.SUCCESS,
+                        return_code=0,
+                        stdout="Internal command executed",
+                        stderr="",
+                        command=[command],
+                        duration_ms=duration
+                    )
+                except Exception as e:
+                    logger.error(f"Internal command failed: {e}")
+                    return CommandResult(
+                        status=CommandStatus.ERROR,
+                        return_code=1,
+                        stdout="",
+                        stderr=str(e),
+                        command=[command]
+                    )
+            else:
+                 # Treat as shell command string? No, enforce list for shell for safety.
+                 # But if it's not registered, maybe it's a mistake?
+                 # Or maybe existing code passes string? 
+                 # Let's fallback to creating a list if it's a string but NOT internal.
+                 command = shlex.split(command)
         
         # Prepare environment
         full_env = os.environ.copy()
