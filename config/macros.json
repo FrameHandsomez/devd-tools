@@ -1,207 +1,207 @@
 {
-  "version": "2.0",
-  "current_mode": "SCRIPT",
-  "modes": {
-    "DEV": {
-      "name": "Development Mode",
-      "bindings": {
-        "f8": {
-          "feature": "snippet_tool",
-          "patterns": {
-            "short": "execute"
-          }
+    "version": "2.0",
+    "current_mode": "GIT",
+    "modes": {
+        "DEV": {
+            "name": "Development Mode",
+            "bindings": {
+                "f8": {
+                    "feature": "snippet_tool",
+                    "patterns": {
+                        "short": "execute"
+                    }
+                },
+                "f9": {
+                    "feature": "clone_project",
+                    "patterns": {
+                        "short": "clone",
+                        "long": "update"
+                    }
+                },
+                "f10": {
+                    "feature": "frontend_runner",
+                    "patterns": {
+                        "short": "run_dev",
+                        "long": "select",
+                        "multi_3": "reset_path"
+                    }
+                },
+                "f11": {
+                    "feature": "mode_switcher",
+                    "patterns": {
+                        "short": "next_mode"
+                    }
+                },
+                "f12": {
+                    "feature": "shortcut_guide",
+                    "patterns": {
+                        "short": "show"
+                    }
+                }
+            }
         },
-        "f9": {
-          "feature": "clone_project",
-          "patterns": {
-            "short": "clone",
-            "long": "update"
-          }
+        "GIT": {
+            "name": "Git Mode",
+            "bindings": {
+                "f8": {
+                    "feature": "snippet_tool",
+                    "patterns": {
+                        "short": "execute"
+                    }
+                },
+                "f9": {
+                    "feature": "git_status",
+                    "patterns": {
+                        "short": "status"
+                    }
+                },
+                "f10": {
+                    "feature": "git_commit",
+                    "patterns": {
+                        "short": "commit",
+                        "long": "select",
+                        "multi_3": "manage"
+                    }
+                },
+                "f11": {
+                    "feature": "mode_switcher",
+                    "patterns": {
+                        "short": "next_mode"
+                    }
+                },
+                "f12": {
+                    "feature": "shortcut_guide",
+                    "patterns": {
+                        "short": "show"
+                    }
+                }
+            }
         },
-        "f10": {
-          "feature": "frontend_runner",
-          "patterns": {
-            "short": "run_dev",
-            "long": "select",
-            "multi_3": "reset_path"
-          }
+        "AI": {
+            "name": "AI Assistant Mode",
+            "bindings": {
+                "f8": {
+                    "feature": "snippet_tool",
+                    "patterns": {
+                        "short": "execute"
+                    }
+                },
+                "f9": {
+                    "feature": "ai_assistant",
+                    "patterns": {
+                        "short": "review_secure",
+                        "long": "explain_code"
+                    }
+                },
+                "f10": {
+                    "feature": "ai_assistant",
+                    "patterns": {
+                        "short": "bug_fix",
+                        "long": "refactor"
+                    }
+                },
+                "f11": {
+                    "feature": "mode_switcher",
+                    "patterns": {
+                        "short": "next_mode"
+                    }
+                },
+                "f12": {
+                    "feature": "shortcut_guide",
+                    "patterns": {
+                        "short": "show"
+                    }
+                }
+            }
         },
-        "f11": {
-          "feature": "mode_switcher",
-          "patterns": {
-            "short": "next_mode"
-          }
-        },
-        "f12": {
-          "feature": "shortcut_guide",
-          "patterns": {
-            "short": "show"
-          }
+        "SCRIPT": {
+            "name": "Script Mode",
+            "bindings": {
+                "f8": {
+                    "feature": "snippet_tool",
+                    "patterns": {
+                        "short": "execute"
+                    }
+                },
+                "f9": {
+                    "feature": "terminal_quick",
+                    "patterns": {
+                        "short": "open_here",
+                        "long": "select"
+                    }
+                },
+                "f10": {
+                    "feature": "terminal_quick",
+                    "patterns": {
+                        "short": "open_here",
+                        "long": "select"
+                    }
+                },
+                "f11": {
+                    "feature": "mode_switcher",
+                    "patterns": {
+                        "short": "next_mode"
+                    }
+                },
+                "f12": {
+                    "feature": "shortcut_guide",
+                    "patterns": {
+                        "short": "show"
+                    }
+                }
+            }
         }
-      }
     },
-    "GIT": {
-      "name": "Git Mode",
-      "bindings": {
-        "f8": {
-          "feature": "snippet_tool",
-          "patterns": {
-            "short": "execute"
-          }
-        },
-        "f9": {
-          "feature": "git_status",
-          "patterns": {
-            "short": "status"
-          }
-        },
-        "f10": {
-          "feature": "git_commit",
-          "patterns": {
-            "short": "commit",
-            "long": "select",
-            "multi_3": "manage"
-          }
-        },
-        "f11": {
-          "feature": "mode_switcher",
-          "patterns": {
-            "short": "next_mode"
-          }
-        },
-        "f12": {
-          "feature": "shortcut_guide",
-          "patterns": {
-            "short": "show"
-          }
-        }
-      }
+    "settings": {
+        "long_press_ms": 800,
+        "multi_press_window_ms": 500,
+        "multi_press_count": 3,
+        "default_clone_path": "C:\\Projects",
+        "notification_enabled": true,
+        "auto_start": false,
+        "monitored_keys": [
+            "f8",
+            "f9",
+            "f10",
+            "f11",
+            "f12"
+        ]
     },
-    "AI": {
-      "name": "AI Assistant Mode",
-      "bindings": {
-        "f8": {
-          "feature": "snippet_tool",
-          "patterns": {
-            "short": "execute"
-          }
-        },
-        "f9": {
-          "feature": "ai_assistant",
-          "patterns": {
-            "short": "review_secure",
-            "long": "explain_code"
-          }
-        },
-        "f10": {
-          "feature": "ai_assistant",
-          "patterns": {
-            "short": "bug_fix",
-            "long": "refactor"
-          }
-        },
-        "f11": {
-          "feature": "mode_switcher",
-          "patterns": {
-            "short": "next_mode"
-          }
-        },
-        "f12": {
-          "feature": "shortcut_guide",
-          "patterns": {
-            "short": "show"
-          }
-        }
-      }
+    "saved_paths": {
+        "frontend_project": null,
+        "frontend_project_list": [
+            {
+                "name": "jr-dev",
+                "path": "C:/Users/Cite/Documents/Github/jr-dev"
+            },
+            {
+                "name": "s11_web",
+                "path": "D:/54842/s11_web"
+            }
+        ],
+        "frontend_project_active": "D:/54842/s11_web",
+        "git_project_list": [
+            {
+                "name": "jr-dev",
+                "path": "%USERPROFILE%/Documents/GitHub/jr-dev"
+            }
+        ],
+        "git_project_active": "%USERPROFILE%/Documents/GitHub/jr-dev",
+        "terminal_project_list": [
+            {
+                "name": "service-repair",
+                "path": "C:/Users/Cite/Documents/Github/service-repair"
+            },
+            {
+                "name": "s11_web",
+                "path": "D:/54842/s11_web"
+            }
+        ],
+        "terminal_project_active": "D:/54842/s11_web"
     },
-    "SCRIPT": {
-      "name": "Script Mode",
-      "bindings": {
-        "f8": {
-          "feature": "snippet_tool",
-          "patterns": {
-            "short": "execute"
-          }
-        },
-        "f9": {
-          "feature": "terminal_quick",
-          "patterns": {
-            "short": "open_here",
-            "long": "select"
-          }
-        },
-        "f10": {
-          "feature": "terminal_quick",
-          "patterns": {
-            "short": "open_here",
-            "long": "select"
-          }
-        },
-        "f11": {
-          "feature": "mode_switcher",
-          "patterns": {
-            "short": "next_mode"
-          }
-        },
-        "f12": {
-          "feature": "shortcut_guide",
-          "patterns": {
-            "short": "show"
-          }
-        }
-      }
+    "quick_panel": {
+        "visible": true,
+        "x": 1487,
+        "y": 40
     }
-  },
-  "settings": {
-    "long_press_ms": 800,
-    "multi_press_window_ms": 500,
-    "multi_press_count": 3,
-    "default_clone_path": "C:\\Projects",
-    "notification_enabled": true,
-    "auto_start": false,
-    "monitored_keys": [
-      "f8",
-      "f9",
-      "f10",
-      "f11",
-      "f12"
-    ]
-  },
-  "saved_paths": {
-    "frontend_project": null,
-    "frontend_project_list": [
-      {
-        "name": "jr-dev",
-        "path": "C:/Users/Cite/Documents/Github/jr-dev"
-      },
-      {
-        "name": "s11_web",
-        "path": "D:/54842/s11_web"
-      }
-    ],
-    "frontend_project_active": "D:/54842/s11_web",
-    "git_project_list": [
-      {
-        "name": "jr-dev",
-        "path": "%USERPROFILE%/Documents/GitHub/jr-dev"
-      }
-    ],
-    "git_project_active": "%USERPROFILE%/Documents/GitHub/jr-dev",
-    "terminal_project_list": [
-      {
-        "name": "service-repair",
-        "path": "C:/Users/Cite/Documents/Github/service-repair"
-      },
-      {
-        "name": "s11_web",
-        "path": "D:/54842/s11_web"
-      }
-    ],
-    "terminal_project_active": "D:/54842/s11_web"
-  },
-  "quick_panel": {
-    "visible": true,
-    "x": 1487,
-    "y": 80
-  }
 }

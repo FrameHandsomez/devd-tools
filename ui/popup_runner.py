@@ -6,45 +6,82 @@ This script is executed via subprocess to avoid tkinter threading issues
 import sys
 import json
 import tkinter as tk
+import winsound
+import time
 
+def play_sound(sound_type="info"):
+    """Play a subtle system sound"""
+    try:
+        if sound_type == "mode":
+            # Subtle ascending beep for mode switch
+            winsound.Beep(600, 50)
+            winsound.Beep(800, 50)
+        elif sound_type == "info":
+            winsound.Beep(700, 100)
+        elif sound_type == "success":
+            winsound.Beep(800, 100)
+            winsound.Beep(1000, 100)
+        elif sound_type == "error":
+            winsound.Beep(400, 200)
+    except:
+        pass
 
 def show_notification_popup(title: str, message: str, duration: int = 2000):
     """Show a simple notification popup"""
+    play_sound("info")
     try:
         root = tk.Tk()
         root.withdraw()
-        root.attributes('-topmost', True)
         
         notif = tk.Toplevel(root)
         notif.overrideredirect(True)
         notif.attributes('-topmost', True)
+        notif.attributes('-alpha', 0.0)
         
-        width = 300
-        height = 80
+        width = 320
+        height = 90
         x = notif.winfo_screenwidth() - width - 20
         y = notif.winfo_screenheight() - height - 60
         notif.geometry(f"{width}x{height}+{x}+{y}")
         
-        notif.configure(bg="#333333")
+        # GitHub Dark theme colors
+        bg_color = "#161b22"
+        border_color = "#30363d"
+        text_primary = "#f0f6fc"
+        text_secondary = "#8b949e"
         
-        frame = tk.Frame(notif, bg="#333333", padx=15, pady=10)
-        frame.pack(fill="both", expand=True)
+        notif.configure(bg=border_color)
+        
+        inner = tk.Frame(notif, bg=bg_color, padx=15, pady=10)
+        inner.pack(fill="both", expand=True, padx=1, pady=1)
         
         tk.Label(
-            frame, text=title, font=("Segoe UI", 11, "bold"),
-            fg="white", bg="#333333"
+            inner, text=title, font=("Segoe UI", 11, "bold"),
+            fg=text_primary, bg=bg_color
         ).pack(anchor="w")
         
         tk.Label(
-            frame, text=message, font=("Segoe UI", 10),
-            fg="#CCCCCC", bg="#333333"
+            inner, text=message, font=("Segoe UI", 10),
+            fg=text_secondary, bg=bg_color
         ).pack(anchor="w", pady=(5, 0))
         
-        def close():
-            root.quit()
-            root.destroy()
+        # Accent bar
+        tk.Frame(inner, bg="#1f6feb", height=3).pack(fill="x", side="bottom", pady=(5, 0))
+
+        def fade_in(alpha=0.0):
+            if alpha < 0.95:
+                notif.attributes('-alpha', alpha)
+                notif.after(10, lambda: fade_in(alpha + 0.1))
         
-        root.after(duration, close)
+        def fade_out(alpha=0.95):
+            if alpha > 0.05:
+                notif.attributes('-alpha', alpha)
+                notif.after(10, lambda: fade_out(alpha - 0.1))
+            else:
+                root.destroy()
+        
+        notif.after(0, fade_in)
+        root.after(duration, fade_out)
         root.mainloop()
     except:
         pass
@@ -52,6 +89,7 @@ def show_notification_popup(title: str, message: str, duration: int = 2000):
 
 def show_key_feedback_popup(key: str, pattern: str, action: str, accent_color: str = "#4CAF50"):
     """Show visual feedback overlay"""
+    play_sound("success")
     try:
         bg_color = "#1a1a2e"
         text_primary = "#ffffff"
@@ -59,7 +97,6 @@ def show_key_feedback_popup(key: str, pattern: str, action: str, accent_color: s
         
         root = tk.Tk()
         root.withdraw()
-        root.attributes('-topmost', True)
         
         overlay = tk.Toplevel(root)
         overlay.overrideredirect(True)
@@ -120,11 +157,9 @@ def show_key_feedback_popup(key: str, pattern: str, action: str, accent_color: s
                     overlay.attributes('-alpha', alpha)
                     overlay.after(20, lambda: fade_out(alpha - 0.12))
                 else:
-                    root.quit()
                     root.destroy()
             except:
                 try:
-                    root.quit()
                     root.destroy()
                 except:
                     pass
@@ -139,6 +174,7 @@ def show_key_feedback_popup(key: str, pattern: str, action: str, accent_color: s
 
 def show_mode_popup(mode_name: str, duration: int = 2000):
     """Show a simple popup when switching modes"""
+    play_sound("mode")
     try:
         root = tk.Tk()
         root.withdraw()

@@ -43,18 +43,71 @@ class ConfigManager:
             self._config = self._get_default_config()
             return self._config
     
-    def save(self):
+    def save(self) -> bool:
         """Save configuration to file"""
         try:
             # Ensure directory exists
             self.config_path.parent.mkdir(parents=True, exist_ok=True)
             
             with open(self.config_path, "w", encoding="utf-8") as f:
-                json.dump(self._config, f, indent=2, ensure_ascii=False)
+                json.dump(self._config, f, indent=4, ensure_ascii=False)
             logger.info(f"Configuration saved to {self.config_path}")
+            return True
         except Exception as e:
-            logger.error(f"Error saving config: {e}")
-            raise
+            logger.error(f"Failed to save configuration: {e}")
+            return False
+
+    def update_binding(self, mode: str, key: str, feature: str, patterns: dict) -> bool:
+        """Update or add a binding for a specific mode and key"""
+        if "modes" not in self._config:
+            self._config["modes"] = {}
+        
+        if mode not in self._config["modes"]:
+            self._config["modes"][mode] = {"bindings": {}}
+            
+        if "bindings" not in self._config["modes"][mode]:
+            self._config["modes"][mode]["bindings"] = {}
+            
+        self._config["modes"][mode]["bindings"][key] = {
+            "feature": feature,
+            "patterns": patterns
+        }
+        return self.save()
+
+    def delete_binding(self, mode: str, key: str, pattern: str = None) -> bool:
+        """
+        Delete a binding. 
+        If pattern is provided, only that pattern is removed from the key.
+        If pattern is None, the entire key binding is removed.
+        """
+        try:
+            bindings = self._config.get("modes", {}).get(mode, {}).get("bindings", {})
+            if key not in bindings:
+                return False
+                
+            if pattern:
+                # Remove specific pattern
+                patterns = bindings[key].get("patterns", {})
+                if pattern in patterns:
+                    del patterns[pattern]
+                    # If no patterns left, remove the whole key
+                    if not patterns:
+                        del bindings[key]
+                else:
+                    return False
+            else:
+                # Remove entire key
+                del bindings[key]
+                
+            return self.save()
+        except Exception as e:
+            logger.error(f"Error deleting binding: {e}")
+            return False
+
+    def get_all_features_metadata(self):
+        """Get a list of all registered features for the UI to display"""
+        # This will be populated by FeatureRegistry
+        return getattr(self, '_features_metadata', [])
     
     def get(self, key: str, default: Any = None) -> Any:
         """Get a configuration value by key"""

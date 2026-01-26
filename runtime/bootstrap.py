@@ -286,21 +286,33 @@ _engine = None
 
 def start():
     """Entry point called by main.py"""
-    # Check if this is a popup request (from subprocess)
-    if len(sys.argv) >= 3:
-        popup_type = sys.argv[1]
-        if popup_type in ["mode", "guide"]:
+    # Check if this is a subprocess request (popup or settings)
+    if len(sys.argv) >= 2:
+        cmd_arg = sys.argv[1]
+        
+        # Handle Settings Window
+        if cmd_arg == "settings":
+            try:
+                from ui.settings_window import SettingsWindow
+                app = SettingsWindow()
+                app.run()
+                sys.exit(0)
+            except Exception as e:
+                print(f"Error launching settings: {e}")
+                sys.exit(1)
+                
+        # Handle Popups
+        if len(sys.argv) >= 3 and cmd_arg in ["mode", "guide"]:
             try:
                 import json
                 from ui.popup_runner import show_mode_popup, show_guide_popup
                 data = json.loads(sys.argv[2])
-                if popup_type == "mode":
+                if cmd_arg == "mode":
                     show_mode_popup(data["mode_name"])
-                elif popup_type == "guide":
+                elif cmd_arg == "guide":
                     show_guide_popup(data["mode_name"], data["guide_lines"], data.get("is_notification", False))
                 sys.exit(0)
             except Exception:
-                # Fallback to normal start if error or not a popup request
                 pass
 
     # Single instance check (Windows)

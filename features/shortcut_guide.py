@@ -122,13 +122,18 @@ class ShortcutGuideFeature(BaseFeature):
         popup_runner = Path(__file__).parent.parent / "ui" / "popup_runner.py"
         data = json.dumps({
             "mode_name": mode_name,
-            "guide_lines": [],
-            "is_notification": True
+            "duration": 2000
         })
         
         try:
+            is_frozen = getattr(sys, 'frozen', False)
+            if is_frozen:
+                cmd = [sys.executable, "mode", data]
+            else:
+                cmd = [sys.executable, str(popup_runner), "mode", data]
+
             subprocess.Popen(
-                [sys.executable, str(popup_runner), "guide", data],
+                cmd,
                 creationflags=subprocess.CREATE_NO_WINDOW
             )
         except Exception as e:

@@ -211,39 +211,32 @@ class SystemTrayUI:
         threading.Thread(target=check, daemon=True).start()
     
     def _on_show_settings(self):
-        """Show settings dialog"""
-        import threading
+        """Show settings window in a separate process"""
+        import subprocess
+        import sys
+        from pathlib import Path
         
-        def show_dialog():
-            from ui.settings_dialog import show_settings_dialog
-            
-            def on_settings_saved(settings):
-                # Update event router settings
-                from runtime.bootstrap import _engine
-                if _engine and _engine.event_router:
-                    _engine.event_router.long_press_ms = settings.get("long_press_ms", 800)
-                    _engine.event_router.multi_press_window_ms = settings.get("multi_press_window_ms", 500)
-                    _engine.event_router.multi_press_count = settings.get("multi_press_count", 3)
-                
-                # Reload monitored keys
-                if _engine and _engine.input_provider:
-                    _engine.input_provider.reload_monitored_keys()
-                
-                # Update tray menu
-                if self.icon:
-                    self.icon.menu = self._create_menu()
-                
-                from ui.dialogs import show_notification
-                show_notification(
-                    title="✅ Settings Saved",
-                    message="Settings have been updated",
-                    duration=2000
-                )
-            
-            show_settings_dialog(self.mode_manager.config_manager, on_settings_saved)
+        # Path to settings_window.py
+        settings_script = Path(__file__).parent / "settings_window.py"
         
-        # Run in separate thread to avoid blocking tray
-        threading.Thread(target=show_dialog, daemon=True).start()
+        try:
+            is_frozen = getattr(sys, 'frozen', False)
+            if is_frozen:
+                # In frozen mode (PyInstaller), run the executable itself with 'settings' argument
+                cmd = [sys.executable, "settings"]
+            else:
+                # In development mode, run the script directly
+                cmd = [sys.executable, str(settings_script)]
+
+            logger.info(f"SystemTray: Launching settings window {cmd}")
+            subprocess.Popen(
+                cmd,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+        except Exception as e:
+            logger.error(f"Error launching settings window: {e}")
+            from ui.dialogs import show_notification
+            show_notification("Error", f"Failed to launch settings: {e}")
     
     def _on_show_status(self):
         """Show current status"""
