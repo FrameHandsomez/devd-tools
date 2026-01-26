@@ -39,35 +39,39 @@ class FeatureRegistry:
         Automatically discover and register all features.
         Scans the 'features' package for classes inheriting from BaseFeature.
         """
-        # Get the features package path
-        features_path = Path(__file__).parent.parent.parent / "features"
-        
-        if not features_path.exists():
-            logger.warning(f"Features directory not found: {features_path}")
-            return
-        
-        logger.info(f"Discovering features from: {features_path}")
-        
-        # Import each module in the features package
-        for finder, name, ispkg in pkgutil.iter_modules([str(features_path)]):
-            if name.startswith("_"):
-                continue
+        try:
+            import features
             
-            try:
-                module = importlib.import_module(f"features.{name}")
+            # Use the package's __path__ which is more robust for PyInstaller
+            features_pkg_path = features.__path__
+            logger.info(f"Discovering features from: {features_pkg_path}")
+            
+            # Import each module in the features package
+            for finder, name, ispkg in pkgutil.iter_modules(features_pkg_path):
+                if name.startswith("_"):
+                    continue
                 
-                # Find BaseFeature subclasses in the module
-                for attr_name in dir(module):
-                    attr = getattr(module, attr_name)
+                try:
+                    full_module_name = f"features.{name}"
+                    module = importlib.import_module(full_module_name)
                     
-                    if (isinstance(attr, type) and 
-                        issubclass(attr, BaseFeature) and 
-                        attr is not BaseFeature):
+                    # Find BaseFeature subclasses in the module
+                    for attr_name in dir(module):
+                        attr = getattr(module, attr_name)
                         
-                        self.register_feature(attr)
-                        
-            except Exception as e:
-                logger.error(f"Error loading feature module {name}: {e}")
+                        if (isinstance(attr, type) and 
+                            issubclass(attr, BaseFeature) and 
+                            attr is not BaseFeature):
+                            
+                            self.register_feature(attr)
+                            
+                except Exception as e:
+                    logger.error(f"Error loading feature module {name}: {e}")
+                    
+        except ImportError as e:
+            logger.error(f"Could not import features package: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error during feature discovery: {e}")
     
     def register_feature(self, feature_class: type):
         """Register a feature class"""

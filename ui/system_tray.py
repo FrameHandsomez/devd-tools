@@ -182,12 +182,12 @@ class SystemTrayUI:
                 duration=2000
             )
             
-            has_update, message = updater.check_for_updates()
+            has_update, message, commits_behind = updater.check_for_updates()
             
             if has_update:
                 # Ask user if they want to update
                 if ask_yes_no("🔄 Update Available", f"{message}\n\nDownload and install now?"):
-                    success, pull_msg = updater.pull_updates()
+                    success, pull_msg = updater.apply_update()
                     
                     if success:
                         show_notification(

@@ -53,6 +53,13 @@ class ModeSwitcherFeature(BaseFeature):
     def _next_mode(self) -> FeatureResult:
         """Switch to the next mode"""
         
+        # Close existing shortcut guide if open
+        try:
+            from features.shortcut_guide import ShortcutGuideFeature
+            ShortcutGuideFeature.close_existing_guide()
+        except Exception:
+            pass
+            
         mode_manager = self._get_mode_manager()
         
         if not mode_manager:
@@ -105,26 +112,12 @@ class ModeSwitcherFeature(BaseFeature):
         }
         accent_color = mode_colors.get(new_mode, "#4CAF50")
         
-        # Show simple notification using subprocess to avoid tkinter threading issues
-        import subprocess
-        import sys
-        import json
-        from pathlib import Path
-        
-        popup_runner = Path(__file__).parent.parent / "ui" / "popup_runner.py"
-        data = json.dumps({
-            "title": f"🔄 {new_mode_name}",
-            "message": "กด F12 เพื่อดู guide",
-            "duration": 2000
-        })
-        
+        # Show notification using the new internal notification system
         try:
-            subprocess.Popen(
-                [sys.executable, str(popup_runner), "notification", data],
-                creationflags=subprocess.CREATE_NO_WINDOW
-            )
+            from features.shortcut_guide import ShortcutGuideFeature
+            ShortcutGuideFeature.show_mode_change_notification(new_mode_name)
         except Exception as e:
-            logger.debug(f"Could not show notification: {e}")
+            logger.debug(f"Could not show mode change notification: {e}")
         
         return FeatureResult(
             status=FeatureStatus.SUCCESS,
@@ -135,6 +128,13 @@ class ModeSwitcherFeature(BaseFeature):
     def _prev_mode(self) -> FeatureResult:
         """Switch to the previous mode"""
         
+        # Close existing shortcut guide if open
+        try:
+            from features.shortcut_guide import ShortcutGuideFeature
+            ShortcutGuideFeature.close_existing_guide()
+        except Exception:
+            pass
+            
         mode_manager = self._get_mode_manager()
         
         if not mode_manager:

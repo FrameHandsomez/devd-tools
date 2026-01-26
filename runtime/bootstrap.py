@@ -6,7 +6,13 @@ main.py only calls start() from here
 import sys
 import threading
 import signal
+import os
 from pathlib import Path
+
+# Windows specific for single instance check
+if sys.platform == 'win32':
+    import ctypes
+    from ctypes import wintypes
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -280,6 +286,34 @@ _engine = None
 
 def start():
     """Entry point called by main.py"""
+    # Check if this is a popup request (from subprocess)
+    if len(sys.argv) >= 3:
+        popup_type = sys.argv[1]
+        if popup_type in ["mode", "guide"]:
+            try:
+                import json
+                from ui.popup_runner import show_mode_popup, show_guide_popup
+                data = json.loads(sys.argv[2])
+                if popup_type == "mode":
+                    show_mode_popup(data["mode_name"])
+                elif popup_type == "guide":
+                    show_guide_popup(data["mode_name"], data["guide_lines"], data.get("is_notification", False))
+                sys.exit(0)
+            except Exception:
+                # Fallback to normal start if error or not a popup request
+                pass
+
+    # Single instance check (Windows)
+    if sys.platform == 'win32':
+        mutex_name = "Global\\JRDev_MacroEngine_Mutex"
+        kernel32 = ctypes.windll.kernel32
+        mutex = kernel32.CreateMutexW(None, False, mutex_name)
+        last_error = kernel32.GetLastError()
+        
+        if last_error == 183: # ERROR_ALREADY_EXISTS
+            print("Another instance of JR-Dev is already running.")
+            sys.exit(0)
+
     global _engine
     
     setup_logger()

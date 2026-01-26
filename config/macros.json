@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "current_mode": "GIT",
+  "current_mode": "SCRIPT",
   "modes": {
     "DEV": {
       "name": "Development Mode",
@@ -201,7 +201,7 @@
   },
   "quick_panel": {
     "visible": true,
-    "x": 1186,
-    "y": 38
+    "x": 1487,
+    "y": 80
   }
 }

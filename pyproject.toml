@@ -10,6 +10,7 @@ dependencies = [
     "Pillow>=10.0.0",
     "pywin32>=306",
     "pyperclip>=1.8.0",
+    "pyinstaller>=6.18.0",
 ]
 
 [dependency-groups]

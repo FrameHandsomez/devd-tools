@@ -35,11 +35,13 @@ class ConfigManager:
             logger.info(f"Configuration loaded from {self.config_path}")
             return self._config
         except json.JSONDecodeError as e:
-            logger.error(f"Invalid JSON in config file: {e}")
-            raise
+            logger.error(f"Invalid JSON in config file: {e}. Loading defaults.")
+            self._config = self._get_default_config()
+            return self._config
         except Exception as e:
-            logger.error(f"Error loading config: {e}")
-            raise
+            logger.error(f"Error loading config: {e}. Loading defaults.")
+            self._config = self._get_default_config()
+            return self._config
     
     def save(self):
         """Save configuration to file"""
