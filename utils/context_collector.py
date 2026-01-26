@@ -173,6 +173,33 @@ class ContextCollector:
             logger.error(f"Error reading package info: {e}")
             return "Package info unavailable"
     
+    def get_recent_logs(self, max_lines: int = 50) -> str:
+        """Find and read recent log files in the project"""
+        try:
+            log_patterns = ["*.log", "logs/*.log", "logs/**/*.log", "error.log", "debug.log"]
+            log_files = []
+            
+            for pattern in log_patterns:
+                log_files.extend(list(self.project_path.glob(pattern)))
+            
+            # Sort by modification time (newest first)
+            log_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+            
+            if not log_files:
+                return "No log files found in project"
+            
+            # Read newest log file
+            target_log = log_files[0]
+            with open(target_log, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.readlines()
+                # Get last N lines
+                recent_lines = content[-max_lines:]
+                return f"Recent logs from {target_log.relative_to(self.project_path)}:\n```\n{''.join(recent_lines)}\n```"
+                
+        except Exception as e:
+            logger.error(f"Error reading logs: {e}")
+            return f"Error reading logs: {e}"
+
     def collect_full_context(self) -> Dict[str, Any]:
         """
         Collect all available context information.
@@ -186,15 +213,17 @@ class ContextCollector:
             "structure": self.get_project_structure(max_depth=2, max_files=30),
             "git_status": self.get_git_status(),
             "recent_commits": self.get_recent_commits(3),
-            "package_info": self.get_package_info()
+            "package_info": self.get_package_info(),
+            "logs": self.get_recent_logs(30)
         }
-    
-    def format_context_for_prompt(self, include_structure: bool = True) -> str:
+
+    def format_context_for_prompt(self, include_structure: bool = True, include_logs: bool = False) -> str:
         """
         Format collected context into a string for AI prompts.
         
         Args:
             include_structure: Whether to include project structure (can be long)
+            include_logs: Whether to include recent logs
         
         Returns:
             Formatted context string
@@ -212,6 +241,13 @@ class ContextCollector:
             "",
             f"### {ctx['recent_commits']}",
         ]
+        
+        if include_logs:
+            lines.extend([
+                "",
+                "### Error Logs",
+                ctx['logs']
+            ])
         
         if include_structure:
             lines.extend([

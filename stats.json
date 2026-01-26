@@ -1,6 +1,6 @@
 {
   "total_key_presses": 0,
-  "total_feature_executions": 113,
+  "total_feature_executions": 115,
   "total_mode_changes": 0,
   "total_commits": 4,
   "total_sessions": 20,
@@ -9,7 +9,7 @@
   "last_use_date": "2026-01-26T16:51:30.519829",
   "feature_usage": {
     "shortcut_guide": 37,
-    "mode_switcher": 49,
+    "mode_switcher": 51,
     "git_commit": 4,
     "frontend_runner": 10,
     "terminal_quick": 2,
@@ -32,7 +32,7 @@
     },
     "2026-01-26": {
       "key_presses": 0,
-      "executions": 4,
+      "executions": 6,
       "mode_changes": 0
     }
   },
