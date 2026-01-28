@@ -74,36 +74,6 @@ class ConfigManager:
         }
         return self.save()
 
-    def delete_binding(self, mode: str, key: str, pattern: str = None) -> bool:
-        """
-        Delete a binding. 
-        If pattern is provided, only that pattern is removed from the key.
-        If pattern is None, the entire key binding is removed.
-        """
-        try:
-            bindings = self._config.get("modes", {}).get(mode, {}).get("bindings", {})
-            if key not in bindings:
-                return False
-                
-            if pattern:
-                # Remove specific pattern
-                patterns = bindings[key].get("patterns", {})
-                if pattern in patterns:
-                    del patterns[pattern]
-                    # If no patterns left, remove the whole key
-                    if not patterns:
-                        del bindings[key]
-                else:
-                    return False
-            else:
-                # Remove entire key
-                del bindings[key]
-                
-            return self.save()
-        except Exception as e:
-            logger.error(f"Error deleting binding: {e}")
-            return False
-
     def get_all_features_metadata(self):
         """Get a list of all registered features for the UI to display"""
         # This will be populated by FeatureRegistry

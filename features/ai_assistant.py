@@ -82,40 +82,22 @@ PROMPTS = {
 - Input ตัวอย่าง → Output
 - Use case จริงๆ ที่เจอได้""",
 
-    "bug_fix": """คุณเป็น Expert Debugger ที่เชี่ยวชาญในการช่วยมือใหม่แก้ปัญหา (Junior-friendly)
-คุณได้รับ Error Logs จากเครื่องของผู้ใช้ และโครงสร้างโปรเจค
+    "bug_fix": """คุณเป็น Debugging Expert ที่เชี่ยวชาญในการแก้ bug
 
-**ข้อมูลที่สำคัญที่สุด (Error Logs):**
-{logs}
+**สถานการณ์:**
+รหัสปัญหาที่เกิดขึ้น: [อธิบายอาการที่เห็น]
 
-**โค้ดที่ผู้ใช้อาจจะแนบมา (ถ้ามี):**
+**โค้ดที่เกี่ยวข้อง:**
 ```
 {code}
 ```
 
-**สิ่งที่คุณต้องทำ:**
-1. **วิเคราะห์ Logs:** บอกผู้ใช้ว่า Error นี้คืออะไร (แปลเป็นไทยง่ายๆ) และเกิดขึ้นที่ไฟล์ไหน บรรทัดไหน
-2. **ตามหาต้นตอ:** ดูจาก Error Traceback และโครงสร้างโปรเจค (ด้านล่าง) เพื่อเดาว่าไฟล์ไหนในโปรเจคที่เป็นตัวปัญหา
-3. **สอนวิธีแก้:** 
-   - ถ้ามีโค้ดแนบมา: ให้แก้โค้ดนั้น
-   - ถ้าไม่มีโค้ดแนบมา: บอกผู้ใช้ว่าต้องไปเปิดไฟล์ไหน และต้องแก้โค้ดประมาณไหน
-4. **แนะนำมือใหม่:** บอกขั้นตอนการเช็คเบื้องต้น (เช่น ต้องลง library เพิ่มไหม? หรือพิมพ์ชื่อไฟล์ผิด?)
-
-*หมายเหตุ: ผู้ใช้เป็นมือใหม่อาจจะไม่รู้ว่าต้องก๊อปโค้ดส่วนไหนมาให้คุณ ดังนั้นโปรดพยายามใช้ Logs ให้เกิดประโยชน์สูงสุด*""",
-
-    "analyze_logs": """คุณเป็น System Administrator และ DevOps Expert ที่เชี่ยวชาญการวิเคราะห์ logs
-
-**Logs ที่ต้องการให้ตรวจสอบ:**
-```
-{logs}
-```
-
 **ให้ช่วย:**
-1. **สรุปเหตุการณ์:** เกิดอะไรขึ้นในระบบ? (Summary in 2-3 lines)
-2. **ค้นหาจุดวิกฤต:** มี Error หรือ Warning ตรงไหนที่ต้องรีบแก้?
-3. **วิเคราะห์สาเหตุ:** จาก logs นี้ สาเหตุที่น่าจะเป็นไปได้มากที่สุดคืออะไร?
-4. **คำแนะนำการแก้ไข:** ต้องไปเช็คที่ไฟล์ไหน หรือต้องรันคำสั่งอะไรเพื่อแก้ปัญหา?
-5. **Security Check:** มีสัญญาณของการถูกโจมตี หรือช่องโหว่ใน logs นี้ไหม?""",
+1. วิเคราะห์สาเหตุของ bug พร้อมอธิบาย "ทำไม" ถึงเกิด
+2. เสนอวิธีแก้ไข 2-3 วิธี (จากง่ายไปยาก)
+3. แสดง code ที่แก้ไขแล้วพร้อมอธิบายว่าเปลี่ยนอะไรไปทำไม
+4. แนะนำวิธีป้องกันไม่ให้เกิด bug แบบนี้อีกในอนาคต
+5. เสนอการเขียน test case เพื่อ catch bug นี้""",
 
     "refactor": """คุณเป็น Software Architect ที่เชี่ยวชาญการออกแบบโค้ดที่ clean และ maintainable
 
@@ -168,9 +150,7 @@ class AIAssistantFeature(BaseFeature):
         elif action == "explain_code":
             return self._run_prompt("explain_code", "📖 Explain Code")
         elif action == "bug_fix":
-            return self._run_prompt("bug_fix", "🪲 Bug Fix (Logs + Code)", include_logs=True, require_code=False)
-        elif action == "analyze_logs":
-            return self._run_prompt("analyze_logs", "📊 Analyze Logs", include_logs=True, require_code=False)
+            return self._run_prompt("bug_fix", "🪲 Bug Fix")
         elif action == "refactor":
             return self._run_prompt("refactor", "🔄 Refactor")
         else:
@@ -189,7 +169,7 @@ class AIAssistantFeature(BaseFeature):
         except OSError:
             return False
 
-    def _run_prompt(self, prompt_key: str, title: str, include_context: bool = True, include_logs: bool = False, require_code: bool = True) -> FeatureResult:
+    def _run_prompt(self, prompt_key: str, title: str, include_context: bool = True) -> FeatureResult:
         """Run a prompt with user's code and optional project context"""
         
         from ui.dialogs import show_notification, ask_yes_no
@@ -207,8 +187,7 @@ class AIAssistantFeature(BaseFeature):
             # Get code from clipboard
             code = pyperclip.paste()
             
-            # Check if code is required but missing
-            if require_code and (not code or not code.strip()):
+            if not code or not code.strip():
                 show_notification(
                     title="❌ ไม่พบโค้ด",
                     message="กรุณา copy โค้ดก่อนกดปุ่ม",
@@ -219,50 +198,32 @@ class AIAssistantFeature(BaseFeature):
                     message="No code in clipboard"
                 )
             
-            # If not required and missing, set a placeholder
-            if not code or not code.strip():
-                code = "(ผู้ใช้ไม่ได้ Copy โค้ดมา - โปรดวิเคราะห์จาก Logs และโครงสร้างโปรเจค)"
-            
             # Get project context
             context_str = ""
-            logs_str = "ไม่พบข้อมูล Logs"
-            
-            try:
-                from utils.context_collector import get_collector
-                
-                # Try to get active project path
-                project_path = None
-                active = self.config_manager.get_active_project("frontend_project")
-                if active:
-                    project_path = Path(active["path"])
-                elif self.config_manager.get_active_project("git_project"):
-                    active = self.config_manager.get_active_project("git_project")
-                    project_path = Path(active["path"])
-                
-                if project_path and project_path.exists():
-                    collector = get_collector(project_path)
+            if include_context:
+                try:
+                    from utils.context_collector import get_collector
                     
-                    if include_context:
-                        context_str = collector.format_context_for_prompt(include_structure=True, include_logs=include_logs)
+                    # Try to get active project path
+                    project_path = None
+                    active = self.config_manager.get_active_project("frontend_project")
+                    if active:
+                        project_path = Path(active["path"])
+                    elif self.config_manager.get_active_project("git_project"):
+                        active = self.config_manager.get_active_project("git_project")
+                        project_path = Path(active["path"])
+                    
+                    if project_path and project_path.exists():
+                        collector = get_collector(project_path)
+                        context_str = collector.format_context_for_prompt(include_structure=True)
                         context_str = f"\n\n---\n{context_str}\n---\n"
-                    
-                    if include_logs:
-                        logs_str = collector.get_recent_logs(30)
-                    
-                    logger.info(f"Collected context from: {project_path}")
-            except Exception as e:
-                logger.warning(f"Could not collect context: {e}")
+                        logger.info(f"Collected context from: {project_path}")
+                except Exception as e:
+                    logger.warning(f"Could not collect context: {e}")
             
             # Format the prompt
             prompt_template = PROMPTS.get(prompt_key, "")
-            
-            # Specialized formatting based on template requirements
-            if prompt_key == "bug_fix":
-                full_prompt = prompt_template.format(code=code, logs=logs_str)
-            elif prompt_key == "analyze_logs":
-                full_prompt = prompt_template.format(logs=logs_str)
-            else:
-                full_prompt = prompt_template.format(code=code)
+            full_prompt = prompt_template.format(code=code)
             
             # Add context if available
             if context_str:

@@ -235,8 +235,6 @@ class SystemTrayUI:
             )
         except Exception as e:
             logger.error(f"Error launching settings window: {e}")
-            from ui.dialogs import show_notification
-            show_notification("Error", f"Failed to launch settings: {e}")
     
     def _on_show_status(self):
         """Show current status"""

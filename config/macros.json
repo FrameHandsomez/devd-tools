@@ -97,8 +97,7 @@
                     "feature": "ai_assistant",
                     "patterns": {
                         "short": "bug_fix",
-                        "long": "refactor",
-                        "multi_3": "analyze_logs"
+                        "long": "refactor"
                     }
                 },
                 "f11": {
@@ -132,10 +131,11 @@
                     }
                 },
                 "f10": {
-                    "feature": "terminal_quick",
+                    "feature": "script_runner",
                     "patterns": {
-                        "short": "open_here",
-                        "long": "select"
+                        "short": "info",
+                        "long": "share",
+                        "multi_3": "clean"
                     }
                 },
                 "f11": {
@@ -202,7 +202,7 @@
     },
     "quick_panel": {
         "visible": true,
-        "x": 1487,
-        "y": 40
+        "x": 1492,
+        "y": 214
     }
 }
