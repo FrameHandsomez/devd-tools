@@ -42,6 +42,44 @@ class ModeSwitcherFeature(BaseFeature):
             # Default to next_mode
             return self._next_mode()
     
+    def _run_dialog_subprocess(self, command, data):
+        """Helper to run dialog subprocess"""
+        import subprocess
+        import sys
+        import json
+        from pathlib import Path
+        
+        # Point to ui/dialogs.py relative to this file
+        dialog_script = Path(__file__).parent.parent / "ui" / "dialogs.py"
+        
+        try:
+            cmd = [sys.executable, str(dialog_script), command, json.dumps(data)]
+            # Run without window creation flag on Windows if possible, but keep simple for now
+            creation_flags = 0
+            if sys.platform == "win32":
+                creation_flags = subprocess.CREATE_NO_WINDOW
+                
+            result = subprocess.run(
+                cmd, 
+                capture_output=True, 
+                text=True, 
+                creationflags=creation_flags,
+                encoding='utf-8',
+                errors='replace'
+            )
+            
+            if result.returncode != 0:
+                logger.error(f"Dialog error ({command}): {result.stderr}")
+                return None
+                
+            if not result.stdout.strip():
+                return None
+                
+            return json.loads(result.stdout)
+        except Exception as e:
+            logger.error(f"Subprocess failed: {e}")
+            return None
+
     def _get_mode_manager(self):
         """Get mode manager from feature registry"""
         # Import here to avoid circular import
@@ -82,35 +120,6 @@ class ModeSwitcherFeature(BaseFeature):
                 _engine.system_tray.update_icon()
         except Exception as e:
             logger.warning(f"Could not update tray icon: {e}")
-        
-        # Get mode bindings for guide
-        bindings = self.config_manager.get_mode_bindings(new_mode)
-        guide_lines = []
-        
-        for key, binding in bindings.items():
-            patterns = binding.get("patterns", {})
-            for pattern, action in patterns.items():
-                pattern_display = {
-                    "short": "กดสั้น",
-                    "long": "กดค้าง",
-                    "double": "กด 2 ครั้ง",
-                    "multi_3": "กด 3 ครั้ง"
-                }.get(pattern, pattern)
-                
-                guide_lines.append({
-                    "key": key.upper(),
-                    "pattern": pattern_display,
-                    "action": action
-                })
-        
-        # Mode colors for accent
-        mode_colors = {
-            "DEV": "#4CAF50",
-            "GIT": "#FF9800",
-            "AI": "#9C27B0",
-            "SCRIPT": "#2196F3"
-        }
-        accent_color = mode_colors.get(new_mode, "#4CAF50")
         
         # Show notification using the new internal notification system
         try:
@@ -169,34 +178,33 @@ class ModeSwitcherFeature(BaseFeature):
             )
         
         try:
-            from ui.dialogs import ask_choice
+            import threading
             
-            modes = mode_manager.modes
-            mode_names = []
-            for mode in modes:
-                mode_config = self.config_manager.get_modes().get(mode, {})
-                name = mode_config.get("name", mode)
-                mode_names.append(f"{mode}: {name}")
-            
-            selected = ask_choice(
-                title="Select Mode",
-                message="Choose a mode:",
-                choices=mode_names
-            )
-            
-            if selected is not None:
-                selected_mode = modes[selected]
-                mode_manager.switch_mode(selected_mode)
+            def run_dialog():
+                modes = mode_manager.modes
+                mode_names = []
+                for mode in modes:
+                    mode_config = self.config_manager.get_modes().get(mode, {})
+                    name = mode_config.get("name", mode)
+                    mode_names.append(f"{mode}: {name}")
                 
-                return FeatureResult(
-                    status=FeatureStatus.SUCCESS,
-                    message=f"Switched to {selected_mode}",
-                    data={"mode": selected_mode}
-                )
+                result_data = self._run_dialog_subprocess("ask_choice", {
+                    "title": "Select Mode",
+                    "message": "Choose a mode:",
+                    "choices": mode_names
+                })
+                
+                if result_data:
+                    idx = result_data.get("result")
+                    if idx is not None and 0 <= idx < len(modes):
+                        selected_mode = modes[idx]
+                        mode_manager.switch_mode(selected_mode)
             
+            threading.Thread(target=run_dialog, daemon=True).start()
+                
             return FeatureResult(
-                status=FeatureStatus.CANCELLED,
-                message="Mode selection cancelled"
+                status=FeatureStatus.SUCCESS,
+                message="Opening mode selector...",
             )
             
         except Exception as e:
@@ -205,4 +213,3 @@ class ModeSwitcherFeature(BaseFeature):
                 status=FeatureStatus.ERROR,
                 message=str(e)
             )
-

@@ -69,10 +69,32 @@ class ShortcutGuideFeature(BaseFeature):
                     "double": "กด 2 ครั้ง",
                     "multi_3": "กด 3 ครั้ง"
                 }.get(pattern, str(pattern))
+                action_name = str(action)
+                # Map technical names to user-friendly names
+                display_map = {
+                    "execute": "Execute Tool",
+                    "menu": "Action Menu",
+                    "clone": "Clone Project",
+                    "update": "Update Project",
+                    "run_dev": "Run Dev Server",
+                    "select": "Select Project",
+                    "reset_path": "Reset Path",
+                    "next_mode": "Switch Mode",
+                    "show": "Show Guide",
+                    "status": "Check Status",
+                    "commit": "Commit & Push",
+                    "prompt": "Smart Prompt",
+                    "review_secure": "Code Review",
+                    "explain_code": "Explain Code",
+                    "bug_fix": "Fix Bugs",
+                    "launch_snippets": "Snippet Tool"
+                }
+                display_action = display_map.get(action_name, action_name.replace("_", " ").title())
+                
                 guide_lines.append({
                     "key": str(key).upper(),
                     "pattern": pattern_display,
-                    "action": str(action),
+                    "action": display_action,
                     "feature": str(feature_name)
                 })
         

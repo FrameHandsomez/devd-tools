@@ -62,8 +62,42 @@ class ModeManager:
             return None, None
         
         binding = bindings[event.key_combination]
-        feature_name = binding.get("feature")
         
+        # Determine the action and feature based on press pattern
+        feature_name = binding.get("feature")
+        patterns = binding.get("patterns", {})
+        
+        # Check if we should use secondary feature
+        secondary_feature = binding.get("secondary_feature")
+        secondary_patterns = binding.get("secondary_patterns", {})
+        
+        action = None
+        
+        # Helper to check patterns
+        def match_pattern(pats, evt):
+            if evt.action and evt.action in pats:
+                return pats[evt.action]
+            elif evt.press_type.value in pats:
+                return pats[evt.press_type.value]
+            return None
+
+        # Check secondary patterns first (often more specific like multi_3)
+        if secondary_feature and secondary_patterns:
+            action = match_pattern(secondary_patterns, event)
+            if action:
+                feature_name = secondary_feature
+
+        # If no secondary match, check primary
+        if not action:
+            action = match_pattern(patterns, event)
+        
+        if not action:
+            # Default fallback logic (legacy)
+            if patterns:
+                 action = list(patterns.values())[0]
+            else:
+                 return None, None
+
         if not feature_name:
             return None, None
         
@@ -72,19 +106,7 @@ class ModeManager:
         if not feature:
             logger.warning(f"Feature not found: {feature_name}")
             return None, None
-        
-        # Determine the action based on press pattern
-        patterns = binding.get("patterns", {})
-        action = None
-        
-        if event.action and event.action in patterns:
-            action = patterns[event.action]
-        elif event.press_type.value in patterns:
-            action = patterns[event.press_type.value]
-        else:
-            # Default to first action if no pattern match
-            action = list(patterns.values())[0] if patterns else "default"
-        
+            
         return feature, action
     
     def switch_mode(self, mode: str) -> bool:

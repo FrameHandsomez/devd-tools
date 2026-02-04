@@ -50,6 +50,8 @@ class GitCommitFeature(BaseFeature):
             return self._show_project_selector_async()
         elif action == "manage":
             return self._show_project_selector_async()
+        elif action == "menu":
+            return self._show_git_menu_async()
         else:
             return FeatureResult(
                 status=FeatureStatus.ERROR,
@@ -142,9 +144,46 @@ class GitCommitFeature(BaseFeature):
         # Multiple projects - show selector
         return self._show_project_selector_async()
     
+    def _run_dialog_subprocess(self, command, data):
+        """Helper to run dialog subprocess"""
+        import subprocess
+        import sys
+        import json
+        from pathlib import Path
+        
+        # Point to ui/dialogs.py relative to this file
+        dialog_script = Path(__file__).parent.parent / "ui" / "dialogs.py"
+        
+        try:
+            cmd = [sys.executable, str(dialog_script), command, json.dumps(data)]
+            # Run without window creation flag on Windows if possible, but keep simple for now
+            creation_flags = 0
+            if sys.platform == "win32":
+                creation_flags = subprocess.CREATE_NO_WINDOW
+                
+            result = subprocess.run(
+                cmd, 
+                capture_output=True, 
+                text=True, 
+                creationflags=creation_flags,
+                encoding='utf-8',
+                errors='replace'
+            )
+            
+            if result.returncode != 0:
+                logger.error(f"Dialog error ({command}): {result.stderr}")
+                return None
+                
+            if not result.stdout.strip():
+                return None
+                
+            return json.loads(result.stdout)
+        except Exception as e:
+            logger.error(f"Subprocess failed: {e}")
+            return None
+
     def _show_project_selector_async(self) -> FeatureResult:
         """Show project selection dialog in a separate thread"""
-        
         def run_dialog():
             self._is_dialog_open = True
             try:
@@ -153,28 +192,24 @@ class GitCommitFeature(BaseFeature):
                 self._is_dialog_open = False
         
         threading.Thread(target=run_dialog, daemon=True).start()
-        
-        return FeatureResult(
-            status=FeatureStatus.SUCCESS,
-            message="Opening project selector..."
-        )
+        return FeatureResult(status=FeatureStatus.SUCCESS, message="Opening project selector...")
     
     def _show_project_selector(self):
         """Show project selection dialog (runs in thread)"""
-        
-        from ui.dialogs import ask_project_selection, show_notification
-        
         projects = self.config_manager.get_projects(self.CONFIG_KEY)
         
-        result = ask_project_selection(
-            projects=projects,
-            title="Git Projects",
-            allow_add=True,
-            allow_remove=True
-        )
+        result_data = self._run_dialog_subprocess("ask_project_selection", {
+            "projects": projects,
+            "title": "Git Projects",
+            "allow_add": True,
+            "allow_remove": True
+        })
         
+        if not result_data:
+            return
+            
+        result = result_data.get("result")
         if not result:
-            logger.info("User cancelled project selection")
             return
         
         action = result["action"]
@@ -184,19 +219,11 @@ class GitCommitFeature(BaseFeature):
             project_path = Path(project["path"])
             
             if not project_path.exists():
-                show_notification(
-                    title="❌ Error",
-                    message=f"Path not found: {project_path}",
-                    duration=3000
-                )
+                self._show_notification_async("❌ Error", f"Path not found: {project_path}")
                 return
             
             if not (project_path / ".git").exists():
-                show_notification(
-                    title="❌ Error",
-                    message=f"Not a git repository",
-                    duration=3000
-                )
+                self._show_notification_async("❌ Error", "Not a git repository")
                 return
             
             # Set as active and commit
@@ -205,23 +232,13 @@ class GitCommitFeature(BaseFeature):
         
         elif action == "add":
             path = result["path"]
-            
             # Verify it's a git repo
             if not (Path(path) / ".git").exists():
-                show_notification(
-                    title="❌ Not a Git Repository",
-                    message="Please select a folder with .git",
-                    duration=3000
-                )
+                self._show_notification_async("❌ Not a Git Repository", "Please select a folder with .git")
                 return
             
             self.config_manager.add_project(self.CONFIG_KEY, path)
-            
-            show_notification(
-                title="✅ Git Project Added",
-                message=f"Added: {Path(path).name}",
-                duration=2000
-            )
+            self._show_notification_async("✅ Git Project Added", f"Added: {Path(path).name}")
             
             # Set as active and commit
             self.config_manager.set_active_project(self.CONFIG_KEY, path)
@@ -230,24 +247,17 @@ class GitCommitFeature(BaseFeature):
         elif action == "remove":
             project = result["project"]
             self.config_manager.remove_project(self.CONFIG_KEY, project["path"])
-            
-            show_notification(
-                title="🗑️ Project Removed",
-                message=f"Removed: {project['name']}",
-                duration=2000
-            )
+            self._show_notification_async("🗑️ Project Removed", f"Removed: {project['name']}")
             
             # Show selector again if there are more projects
             remaining = self.config_manager.get_projects(self.CONFIG_KEY)
             if remaining:
                 self._show_project_selector()
             else:
-                # No projects left, reset flag so user can add new ones
                 self._is_dialog_open = False
     
     def _add_new_project_async(self) -> FeatureResult:
         """Add a new project (runs in thread)"""
-        
         def run_dialog():
             self._is_dialog_open = True
             try:
@@ -256,49 +266,35 @@ class GitCommitFeature(BaseFeature):
                 self._is_dialog_open = False
         
         threading.Thread(target=run_dialog, daemon=True).start()
-        
-        return FeatureResult(
-            status=FeatureStatus.SUCCESS,
-            message="Opening folder selector..."
-        )
+        return FeatureResult(status=FeatureStatus.SUCCESS, message="Opening folder selector...")
     
     def _add_new_project(self):
         """Add a new git project (runs in thread)"""
+        result = self._run_dialog_subprocess("ask_folder_path", {
+            "title": "Select Git Repository"
+        })
         
-        from ui.dialogs import ask_folder_path, show_notification
-        
-        project_path = ask_folder_path("Select Git Repository")
-        
-        if not project_path:
+        if not result or not result.get("path"):
             logger.info("User cancelled folder selection")
             return
-        
+            
+        project_path = result.get("path")
         path = Path(project_path)
         
         # Verify it's a git repo
         if not (path / ".git").exists():
-            show_notification(
-                title="❌ Not a Git Repository",
-                message="Please select a folder with .git",
-                duration=3000
-            )
+            self._show_notification_async("❌ Not a Git Repository", "Please select a folder with .git")
             return
         
         # Add to project list
         self.config_manager.add_project(self.CONFIG_KEY, project_path)
         self.config_manager.set_active_project(self.CONFIG_KEY, project_path)
         
-        show_notification(
-            title="✅ Git Project Added",
-            message=f"Added: {path.name}",
-            duration=2000
-        )
-        
+        self._show_notification_async("✅ Git Project Added", f"Added: {path.name}")
         self._run_commit(path)
     
     def _run_commit_async(self, project_path: Path) -> FeatureResult:
         """Run commit workflow asynchronously"""
-        
         def run():
             self._is_dialog_open = True
             try:
@@ -307,59 +303,48 @@ class GitCommitFeature(BaseFeature):
                 self._is_dialog_open = False
         
         threading.Thread(target=run, daemon=True).start()
-        
-        return FeatureResult(
-            status=FeatureStatus.SUCCESS,
-            message=f"Opening commit dialog for {project_path.name}..."
-        )
+        return FeatureResult(status=FeatureStatus.SUCCESS, message=f"Opening commit dialog for {project_path.name}...")
     
     def _check_git_config(self, project_path: Path) -> bool:
         """Check if user.name and user.email are configured"""
         import subprocess
-        
         try:
-            # Check user.name
             name = subprocess.check_output(
                 ["git", "config", "user.name"],
                 cwd=project_path,
-                text=True
+                text=True,
+                encoding='utf-8', errors='replace'
             ).strip()
-            
-            # Check user.email
             email = subprocess.check_output(
                 ["git", "config", "user.email"],
                 cwd=project_path,
-                text=True
+                text=True,
+                encoding='utf-8', errors='replace'
             ).strip()
-            
             return bool(name and email)
-            
         except subprocess.CalledProcessError:
             return False
             
     def _run_commit(self, project_path: Path):
         """Run the actual commit workflow (runs in thread)"""
-        
-        from ui.dialogs import ask_commit_message, show_notification
-        
-        # Check git config
         logger.info(f"Checking git config for: {project_path}")
         if not self._check_git_config(project_path):
-            logger.warning("Git config check failed - user.name or user.email missing")
-            self._show_notification_async(
-                "❌ Git Config Missing",
-                "Please configure user.name and user.email first"
-            )
+            logger.warning("Git config check failed")
+            self._show_notification_async("❌ Git Config Missing", "Please configure user.name/email first")
             return
         logger.info("Git config check passed")
 
         # Ask for commit message
-        commit_message = ask_commit_message(f"Commit to {project_path.name}")
+        result = self._run_dialog_subprocess("ask_commit_message", {
+            "title": f"Commit to {project_path.name}",
+            "initial_value": ""
+        })
         
-        if not commit_message:
+        if not result or not result.get("message"):
             logger.info("User cancelled commit")
             return
-        
+            
+        commit_message = result.get("message")
         logger.info(f"Committing to {project_path} with message: {commit_message}")
         
         # Run git add, commit, push in interactive terminal
@@ -376,19 +361,151 @@ class GitCommitFeature(BaseFeature):
         )
         
         if success:
-            self._show_notification_async(
-                "✅ Git Commit",
-                f"Committed: {commit_message[:50]}..."
-            )
+            self._show_notification_async("✅ Git Commit", f"Committed: {commit_message[:50]}...")
     
+    def _show_git_menu_async(self) -> FeatureResult:
+        """Show git menu in thread"""
+        def run_menu():
+            self._is_dialog_open = True
+            try:
+                self._show_git_menu()
+            finally:
+                self._is_dialog_open = False
+                
+        threading.Thread(target=run_menu, daemon=True).start()
+        return FeatureResult(status=FeatureStatus.SUCCESS, message="Opening Git Menu...")
+
+    def _show_git_menu(self):
+        active = self.config_manager.get_active_project(self.CONFIG_KEY)
+        project_name = active.get("name", "Unknown") if active else "No Project"
+        
+        options = [
+            "✅ Commit & Push",
+            "✨ AI Auto-Commit",
+            "📊 Check Status",
+            "🔄 Pull Changes",
+            "🗑️ Discard Changes",
+            "📂 Switch Project"
+        ]
+        
+        result_data = self._run_dialog_subprocess("ask_choice", {
+            "title": "Git Manager",
+            "message": f"Repo: {project_name}\nSelect Action:",
+            "choices": options
+        })
+        
+        if not result_data:
+            return
+        
+        choice_idx = result_data.get("result")
+        if choice_idx is None:
+            return
+            
+        if choice_idx == 5: # Switch Project
+            self._show_project_selector()
+            return
+            
+        # Ensure active project
+        if not active:
+             if self._show_project_selector(): 
+                 active = self.config_manager.get_active_project(self.CONFIG_KEY)
+             
+        if not active:
+            return
+
+        project_path = Path(active["path"])
+        
+        if choice_idx == 0: # Commit
+            self._run_commit(project_path)
+            
+        elif choice_idx == 1: # AI Auto-Commit
+            self._run_ai_commit(project_path)
+            
+        elif choice_idx == 2: # Status
+            self.command_executor.execute_interactive(
+                commands=[["git", "status"]],
+                cwd=project_path,
+                title="Git Status",
+                keep_open=True
+            )
+            
+        elif choice_idx == 3: # Pull
+            self.command_executor.execute_interactive(
+                commands=[["git", "pull"]],
+                cwd=project_path,
+                title="Git Pull"
+            )
+            
+        elif choice_idx == 4: # Discard
+            yes_no = self._run_dialog_subprocess("ask_yes_no", {
+                "title": "Confirm Discard",
+                "message": "⚠️ Are you sure you want to discard ALL changes?"
+            })
+            if yes_no and yes_no.get("result"):
+                self.command_executor.execute_interactive(
+                    commands=[["git", "restore", "."]],
+                    cwd=project_path,
+                    title="Discard Changes"
+                )
+
+    def _run_ai_commit(self, project_path: Path):
+        """Prepare AI prompt for commit message"""
+        import subprocess
+        import pyperclip
+        import webbrowser
+        
+        try:
+            # 1. Get git status/diff
+            staged_diff = subprocess.check_output(
+                ["git", "diff", "--cached"], 
+                cwd=project_path, text=True,
+                encoding='utf-8', errors='replace'
+            )
+            
+            diff_output = staged_diff
+            if not staged_diff.strip():
+                diff_output = subprocess.check_output(
+                    ["git", "diff"],
+                    cwd=project_path, text=True,
+                    encoding='utf-8', errors='replace'
+                )
+                
+            if not diff_output.strip():
+                diff_output = subprocess.check_output(
+                    ["git", "status"],
+                    cwd=project_path, text=True,
+                    encoding='utf-8', errors='replace'
+                )
+            
+            # 2. Prepare Prompt
+            prompt_header = "You are a senior developer. Write a clear, concise git commit message for the following changes.\\n"
+            prompt_header += "Format:\\n<type>: <subject>\\n\\n<body>\\n\\nChanges:\\n```\\n"
+            
+            prompt_footer = "\\n```\\n\\nConstraints:\\n"
+            prompt_footer += "- Use Conventional Commits (feat, fix, docs, style, refactor, test, chore)\\n"
+            prompt_footer += "- Keep subject under 50 chars\\n- English language"
+            
+            prompt = prompt_header + diff_output[:3000] + prompt_footer
+            
+            # 3. Copy to clipboard
+            pyperclip.copy(prompt)
+            
+            # 4. Open ChatGPT
+            webbrowser.open("https://chat.openai.com/")
+            
+            self._show_notification_async(
+                "✨ AI Prompt Ready",
+                "Prompt copied! Paste in ChatGPT to get commit message."
+            )
+            
+        except Exception as e:
+            logger.error(f"AI Commit Error: {e}")
+            self._show_notification_async("❌ Error", f"Failed: {str(e)}")
+            
     def _show_notification_async(self, title: str, message: str):
         """Show notification in a separate thread"""
-        
-        def show():
-            try:
-                from ui.dialogs import show_notification
-                show_notification(title=title, message=message, duration=3000)
-            except Exception as e:
-                logger.warning(f"Could not show notification: {e}")
-        
-        threading.Thread(target=show, daemon=True).start()
+        self._run_dialog_subprocess("show_notification", {
+            "title": title,
+            "message": message,
+            "duration": 3000
+        })

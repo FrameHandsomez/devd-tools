@@ -1,6 +1,6 @@
 {
     "version": "2.0",
-    "current_mode": "SCRIPT",
+    "current_mode": "GIT",
     "modes": {
         "DEV": {
             "name": "Development Mode",
@@ -12,10 +12,9 @@
                     }
                 },
                 "f9": {
-                    "feature": "clone_project",
+                    "feature": "frontend_runner",
                     "patterns": {
-                        "short": "clone",
-                        "long": "update"
+                        "short": "menu"
                     }
                 },
                 "f10": {
@@ -24,6 +23,11 @@
                         "short": "run_dev",
                         "long": "select",
                         "multi_3": "reset_path"
+                    },
+                    "secondary_feature": "terminal_quick",
+                    "secondary_patterns": {
+                        "short": "execute",
+                        "long": "select_and_launch"
                     }
                 },
                 "f11": {
@@ -50,9 +54,9 @@
                     }
                 },
                 "f9": {
-                    "feature": "git_status",
+                    "feature": "git_commit",
                     "patterns": {
-                        "short": "status"
+                        "short": "menu"
                     }
                 },
                 "f10": {
@@ -61,6 +65,10 @@
                         "short": "commit",
                         "long": "select",
                         "multi_3": "manage"
+                    },
+                    "secondary_feature": "terminal_quick",
+                    "secondary_patterns": {
+                        "long": "select_and_launch"
                     }
                 },
                 "f11": {
@@ -81,23 +89,22 @@
             "name": "AI Assistant Mode",
             "bindings": {
                 "f8": {
-                    "feature": "snippet_tool",
+                    "feature": "smart_terminal",
                     "patterns": {
-                        "short": "execute"
+                        "short": "prompt",
+                        "long": "execute"
                     }
                 },
                 "f9": {
                     "feature": "ai_assistant",
                     "patterns": {
-                        "short": "review_secure",
-                        "long": "explain_code"
+                        "short": "menu"
                     }
                 },
                 "f10": {
-                    "feature": "ai_assistant",
+                    "feature": "terminal_quick",
                     "patterns": {
-                        "short": "bug_fix",
-                        "long": "refactor"
+                        "short": "select_and_launch"
                     }
                 },
                 "f11": {
@@ -114,8 +121,8 @@
                 }
             }
         },
-        "SCRIPT": {
-            "name": "Script Mode",
+        "DOCKER": {
+            "name": "Docker Mode",
             "bindings": {
                 "f8": {
                     "feature": "snippet_tool",
@@ -124,18 +131,15 @@
                     }
                 },
                 "f9": {
-                    "feature": "terminal_quick",
+                    "feature": "docker_manager",
                     "patterns": {
-                        "short": "open_here",
-                        "long": "select"
+                        "short": "menu"
                     }
                 },
                 "f10": {
-                    "feature": "script_runner",
+                    "feature": "terminal_quick",
                     "patterns": {
-                        "short": "info",
-                        "long": "share",
-                        "multi_3": "clean"
+                        "short": "select_and_launch"
                     }
                 },
                 "f11": {
@@ -172,15 +176,19 @@
         "frontend_project": null,
         "frontend_project_list": [
             {
-                "name": "jr-dev",
-                "path": "C:/Users/Cite/Documents/Github/jr-dev"
-            },
-            {
                 "name": "s11_web",
                 "path": "D:/54842/s11_web"
+            },
+            {
+                "name": "docker-dl",
+                "path": "D:/54842/docker-dl"
+            },
+            {
+                "name": "redis",
+                "path": "D:/54842/docker-bl/redis"
             }
         ],
-        "frontend_project_active": "D:/54842/s11_web",
+        "frontend_project_active": "D:\\54842\\s11_web",
         "git_project_list": [
             {
                 "name": "jr-dev",
@@ -190,19 +198,29 @@
         "git_project_active": "%USERPROFILE%/Documents/GitHub/jr-dev",
         "terminal_project_list": [
             {
-                "name": "service-repair",
-                "path": "C:/Users/Cite/Documents/Github/service-repair"
-            },
-            {
                 "name": "s11_web",
                 "path": "D:/54842/s11_web"
+            },
+            {
+                "name": "docker-dl",
+                "path": "D:\\54842\\docker-dl"
+            },
+            {
+                "name": "docker-bl",
+                "path": "D:\\54842\\docker-bl"
+            },
+            {
+                "name": "redis",
+                "path": "D:\\54842\\docker-bl\\redis"
             }
         ],
-        "terminal_project_active": "D:/54842/s11_web"
+        "terminal_project_active": "C:\\Users\\Cite\\Documents\\Github\\service-repair",
+        "docker_project_list": [],
+        "docker_project_active": "C:\\Users\\Cite\\Documents\\Github\\jr-dev"
     },
     "quick_panel": {
-        "visible": true,
-        "x": 1492,
-        "y": 214
+        "visible": false,
+        "x": 1415,
+        "y": 81
     }
 }

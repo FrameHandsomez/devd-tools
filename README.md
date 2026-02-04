@@ -9,10 +9,10 @@ Switch between projects instantly without changing configuration files.
 - **Frontend Runner:** Manage multiple `npm run dev` servers.
 - **Git Workflow:** Commit & Push to different repositories easily.
 
-### 🖥️ 2. Terminal Quick Actions (NEW!)
-Open a terminal at your project's root instantly.
-- **Windows Terminal Support:** Opens in a new tab if available.
-- **Project Selection:** Choose which project to open using **SCRIPT Mode**.
+### 🐳 2. Docker Manager (NEW!)
+Manage Docker containers directly from your keyboard.
+- **Quick Controls:** Up, Down, Restart, and View Logs.
+- **Project Aware:** Automatically finds `docker-compose.yml` in your projects.
 
 ### 📊 3. Statistics Dashboard (NEW!)
 Track your productivity habits.
@@ -56,13 +56,14 @@ Cycle through modes using **F11**. Show current bindings with **F12**.
 | **F10** | Long | **Select Repository** |
 | **F10** | 3x Click | **Manage Repositories** |
 
-### 📜 3. SCRIPT Mode (Terminal & Ops)
+### 🐳 3. DOCKER Mode (Container Ops)
 | Key | Press | Action |
 | :--- | :--- | :--- |
-| **F9** | Short | **Open Terminal Here** (Active Project) |
-| **F9** | Long | **Select Project** to Open |
-| **F10** | Short | **Open Terminal Here** (Active Project) |
-| **F10** | Long | **Select Project** to Open |
+| **F9** | Short | **Docker Up** (docker-compose up -d) |
+| **F9** | Long | **Docker Down** (docker-compose down) |
+| **F10** | Short | **View Logs** (docker-compose logs -f) |
+| **F10** | Long | **Restart** (docker-compose restart) |
+| **F10** | 3x Click | **Select & Launch** (Standard / WSL / Logs) |
 
 ### 🤖 4. AI Mode (Assistant)
 | Key | Press | Action |

@@ -8,6 +8,7 @@ Actions:
 - optimize: Optimize code performance
 """
 
+import threading
 from pathlib import Path
 from typing import Optional
 from core.features.base_feature import BaseFeature, FeatureResult, FeatureStatus
@@ -153,11 +154,83 @@ class AIAssistantFeature(BaseFeature):
             return self._run_prompt("bug_fix", "🪲 Bug Fix")
         elif action == "refactor":
             return self._run_prompt("refactor", "🔄 Refactor")
+        elif action == "menu":
+            return self._show_ai_menu_async()
         else:
             return FeatureResult(
                 status=FeatureStatus.ERROR,
                 message=f"Unknown action: {action}"
             )
+    
+    def _run_dialog_subprocess(self, command, data):
+        """Helper to run dialog subprocess"""
+        import subprocess
+        import sys
+        import json
+        from pathlib import Path
+        
+        # Point to ui/dialogs.py relative to this file
+        dialog_script = Path(__file__).parent.parent / "ui" / "dialogs.py"
+        
+        try:
+            cmd = [sys.executable, str(dialog_script), command, json.dumps(data)]
+            # Run without window creation flag on Windows if possible, but keep simple for now
+            creation_flags = 0
+            if sys.platform == "win32":
+                creation_flags = subprocess.CREATE_NO_WINDOW
+                
+            result = subprocess.run(
+                cmd, 
+                capture_output=True, 
+                text=True, 
+                creationflags=creation_flags,
+                encoding='utf-8',
+                errors='replace'
+            )
+            
+            if result.returncode != 0:
+                logger.error(f"Dialog error ({command}): {result.stderr}")
+                return None
+                
+            if not result.stdout.strip():
+                return None
+                
+            return json.loads(result.stdout)
+        except Exception as e:
+            logger.error(f"Subprocess failed: {e}")
+            return None
+
+    def _show_ai_menu_async(self) -> FeatureResult:
+        """Show AI menu"""
+        def run():
+            options = [
+                "🔍 Code Review & Security",
+                "📖 Explain Code",
+                "🪲 Bug Fix",
+                "🔄 Refactor Code"
+            ]
+            
+            result_data = self._run_dialog_subprocess("ask_choice", {
+                "title": "AI Assistant",
+                "message": "Select AI Action (Copy code first!):",
+                "choices": options
+            })
+            
+            if not result_data:
+                return
+                
+            idx = result_data.get("result")
+            if idx is None:
+                return
+            
+            if idx == 0: self._run_prompt("review_secure", "🔍 Review & Secure")
+            elif idx == 1: self._run_prompt("explain_code", "📖 Explain Code")
+            elif idx == 2: self._run_prompt("bug_fix", "🪲 Bug Fix")
+            elif idx == 3: self._run_prompt("refactor", "🔄 Refactor")
+            
+        import threading
+        threading.Thread(target=run, daemon=True).start()
+        return FeatureResult(status=FeatureStatus.SUCCESS, message="Opening AI Menu...")
     
     def _check_connection(self) -> bool:
         """Check internet connection"""
@@ -169,15 +242,27 @@ class AIAssistantFeature(BaseFeature):
         except OSError:
             return False
 
+    def _show_notification_async(self, title: str, message: str, duration: int = 3000):
+        """Show notification using subprocess"""
+        self._run_dialog_subprocess("show_notification", {
+            "title": title,
+            "message": message,
+            "duration": duration
+        })
+
     def _run_prompt(self, prompt_key: str, title: str, include_context: bool = True) -> FeatureResult:
         """Run a prompt with user's code and optional project context"""
         
-        from ui.dialogs import show_notification, ask_yes_no
         import pyperclip
         
         # Check network first
         if not self._check_connection():
-            if not ask_yes_no("🌐 No Internet", "ไม่พบสัญญาณอินเทอร์เน็ต\nต้องการดำเนินการต่อหรือไม่? (Prompt จะถูก copy ไว้)"):
+            yes_no = self._run_dialog_subprocess("ask_yes_no", {
+                "title": "🌐 No Internet",
+                "message": "ไม่พบสัญญาณอินเทอร์เน็ต\nต้องการดำเนินการต่อหรือไม่? (Prompt จะถูก copy ไว้)"
+            })
+            
+            if not yes_no or not yes_no.get("result"):
                 return FeatureResult(
                     status=FeatureStatus.CANCELLED,
                     message="Offline - blocked by user check"
@@ -188,10 +273,10 @@ class AIAssistantFeature(BaseFeature):
             code = pyperclip.paste()
             
             if not code or not code.strip():
-                show_notification(
-                    title="❌ ไม่พบโค้ด",
-                    message="กรุณา copy โค้ดก่อนกดปุ่ม",
-                    duration=3000
+                self._show_notification_async(
+                    "❌ ไม่พบโค้ด",
+                    "กรุณา copy โค้ดก่อนกดปุ่ม",
+                    3000
                 )
                 return FeatureResult(
                     status=FeatureStatus.CANCELLED,
@@ -236,10 +321,10 @@ class AIAssistantFeature(BaseFeature):
             webbrowser.open("https://chat.openai.com/")
             
             # Show notification
-            show_notification(
-                title=f"✅ {title}",
-                message="Prompt copied! วาง (Ctrl+V) ใน ChatGPT ได้เลย",
-                duration=4000
+            self._show_notification_async(
+                f"✅ {title}",
+                "Prompt copied! วาง (Ctrl+V) ใน ChatGPT ได้เลย",
+                4000
             )
             
             logger.info(f"AI prompt '{prompt_key}' prepared and copied to clipboard")
@@ -251,10 +336,10 @@ class AIAssistantFeature(BaseFeature):
             )
             
         except ImportError:
-            show_notification(
-                title="❌ ขาด Library",
-                message="กรุณาติดตั้ง: pip install pyperclip",
-                duration=5000
+            self._show_notification_async(
+                "❌ ขาด Library",
+                "กรุณาติดตั้ง: pip install pyperclip",
+                5000
             )
             return FeatureResult(
                 status=FeatureStatus.ERROR,

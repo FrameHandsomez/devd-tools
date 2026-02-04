@@ -32,7 +32,6 @@ class FrontendRunnerFeature(BaseFeature):
     supported_patterns = [PressType.SHORT, PressType.LONG, PressType.MULTI]
     
     CONFIG_KEY = "frontend_project"
-    _dialog_lock = threading.Lock()
     _is_dialog_open = False
     
     def execute(self, event: InputEvent, action: str) -> FeatureResult:
@@ -52,12 +51,107 @@ class FrontendRunnerFeature(BaseFeature):
             return self._show_project_selector_async()
         elif action == "reset_path":
             return self._show_project_selector_async()
+        elif action == "menu":
+            return self._show_dev_menu_async()
         else:
             return FeatureResult(
                 status=FeatureStatus.ERROR,
                 message=f"Unknown action: {action}"
             )
     
+    def _run_dialog_subprocess(self, command, data):
+        """Helper to run dialog subprocess"""
+        import subprocess
+        import sys
+        import json
+        from pathlib import Path
+        
+        # Point to ui/dialogs.py relative to this file
+        dialog_script = Path(__file__).parent.parent / "ui" / "dialogs.py"
+        
+        try:
+            cmd = [sys.executable, str(dialog_script), command, json.dumps(data)]
+            # Run without window creation flag on Windows if possible, but keep simple for now
+            creation_flags = 0
+            if sys.platform == "win32":
+                creation_flags = subprocess.CREATE_NO_WINDOW
+                
+            result = subprocess.run(
+                cmd, 
+                capture_output=True, 
+                text=True, 
+                creationflags=creation_flags,
+                encoding='utf-8',
+                errors='replace'
+            )
+            
+            if result.returncode != 0:
+                logger.error(f"Dialog error ({command}): {result.stderr}")
+                return None
+                
+            if not result.stdout.strip():
+                return None
+                
+            return json.loads(result.stdout)
+        except Exception as e:
+            logger.error(f"Subprocess failed: {e}")
+            return None
+
+    def _show_notification_async(self, title: str, message: str):
+        """Show notification via subprocess"""
+        self._run_dialog_subprocess("show_notification", {
+            "title": title,
+            "message": message,
+            "duration": 2000
+        })
+
+    def _show_dev_menu_async(self) -> FeatureResult:
+        """Show the development menu in a separate thread"""
+        def run_dialog():
+            self._is_dialog_open = True
+            try:
+                self._show_dev_menu()
+            finally:
+                self._is_dialog_open = False
+        
+        threading.Thread(target=run_dialog, daemon=True).start()
+        
+        return FeatureResult(
+            status=FeatureStatus.SUCCESS,
+            message="Opening dev menu..."
+        )
+
+    def _show_dev_menu(self):
+        """Show development actions menu"""
+        active = self.config_manager.get_active_project(self.CONFIG_KEY)
+        project_name = active.get("name", "Unknown") if active else "No Project"
+        
+        options = [
+            "▶ Run Dev Server",
+            "📂 Select Project",
+            "🔄 Reset Path"
+        ]
+        
+        result_data = self._run_dialog_subprocess("ask_choice", {
+            "title": "Dev Menu",
+            "message": f"Current: {project_name}\nSelect Action:",
+            "choices": options
+        })
+        
+        if not result_data:
+            return
+            
+        choice_idx = result_data.get("result")
+        if choice_idx is None:
+            return
+            
+        if choice_idx == 0: # Run
+            self._run_dev_server()
+        elif choice_idx == 1: # Select
+            self._show_project_selector()
+        elif choice_idx == 2: # Reset
+            self._show_project_selector()
+
     def _normalize_path(self, path_str: str) -> Path:
         """Normalize path string to proper Path object - handles all formats"""
         if not path_str:
@@ -124,20 +218,20 @@ class FrontendRunnerFeature(BaseFeature):
     
     def _show_project_selector(self):
         """Show project selection dialog (runs in thread)"""
-        
-        from ui.dialogs import ask_project_selection, show_notification
-        
         projects = self.config_manager.get_projects(self.CONFIG_KEY)
         
-        result = ask_project_selection(
-            projects=projects,
-            title="Frontend Projects",
-            allow_add=True,
-            allow_remove=True
-        )
+        result_data = self._run_dialog_subprocess("ask_project_selection", {
+            "projects": projects,
+            "title": "Frontend Projects",
+            "allow_add": True,
+            "allow_remove": True
+        })
         
+        if not result_data:
+            return
+            
+        result = result_data.get("result")
         if not result:
-            logger.info("User cancelled project selection")
             return
         
         action = result["action"]
@@ -147,11 +241,7 @@ class FrontendRunnerFeature(BaseFeature):
             project_path = Path(project["path"])
             
             if not project_path.exists():
-                show_notification(
-                    title="❌ Error",
-                    message=f"Path not found: {project_path}",
-                    duration=3000
-                )
+                self._show_notification_async("❌ Error", f"Path not found: {project_path}")
                 return
             
             # Set as active and run
@@ -162,11 +252,7 @@ class FrontendRunnerFeature(BaseFeature):
             path = result["path"]
             self.config_manager.add_project(self.CONFIG_KEY, path)
             
-            show_notification(
-                title="✅ Project Added",
-                message=f"Added: {Path(path).name}",
-                duration=2000
-            )
+            self._show_notification_async("✅ Project Added", f"Added: {Path(path).name}")
             
             # Set as active and run
             project_path = Path(path)
@@ -177,20 +263,15 @@ class FrontendRunnerFeature(BaseFeature):
             project = result["project"]
             self.config_manager.remove_project(self.CONFIG_KEY, project["path"])
             
-            show_notification(
-                title="🗑️ Project Removed",
-                message=f"Removed: {project['name']}",
-                duration=2000
-            )
+            self._show_notification_async("🗑️ Project Removed", f"Removed: {project['name']}")
             
             # Show selector again if there are more projects
             remaining = self.config_manager.get_projects(self.CONFIG_KEY)
             if remaining:
                 self._show_project_selector()
             else:
-                # No projects left, reset flag
                 self._is_dialog_open = False
-    
+
     def _add_new_project_async(self) -> FeatureResult:
         """Add a new project (runs in thread)"""
         
@@ -211,30 +292,29 @@ class FrontendRunnerFeature(BaseFeature):
     def _add_new_project(self):
         """Add a new project (runs in thread)"""
         
-        from ui.dialogs import ask_folder_path, show_notification
+        result = self._run_dialog_subprocess("ask_folder_path", {
+            "title": "Select frontend project folder"
+        })
         
-        project_path = ask_folder_path("Select frontend project folder")
-        
-        if not project_path:
+        if not result or not result.get("path"):
             logger.info("User cancelled folder selection")
             return
+            
+        project_path = result.get("path")
         
         # Add to project list
         self.config_manager.add_project(self.CONFIG_KEY, project_path)
         self.config_manager.set_active_project(self.CONFIG_KEY, project_path)
         
-        show_notification(
-            title="✅ Project Added",
-            message=f"Added: {Path(project_path).name}",
-            duration=2000
+        self._show_notification_async(
+            "✅ Project Added",
+            f"Added: {Path(project_path).name}"
         )
         
         self._start_dev_server(Path(project_path))
     
     def _start_dev_server(self, project_path: Path) -> FeatureResult:
         """Start the dev server for the given project"""
-        
-        from ui.dialogs import show_notification
         
         # Detect dev command
         dev_cmd = get_dev_command(project_path)
@@ -255,14 +335,11 @@ class FrontendRunnerFeature(BaseFeature):
         )
         
         if success:
-            # Show notification in thread to avoid blocking
-            def notify():
-                show_notification(
-                    title="▶️ Dev Server Started",
-                    message=f"{project_path.name}",
-                    duration=2000
-                )
-            threading.Thread(target=notify, daemon=True).start()
+            # Show notification using subprocess to prevent thread conflicts
+            self._show_notification_async(
+                "▶️ Dev Server Started", 
+                f"{project_path.name}"
+            )
             
             return FeatureResult(
                 status=FeatureStatus.SUCCESS,
