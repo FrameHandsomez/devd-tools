@@ -60,6 +60,7 @@ a = Analysis(
         'features',
         'features.ai_assistant',
         'features.clone_project',
+        'features.docker_manager',
         'features.frontend_runner',
         'features.git_commit',
         'features.git_status',
@@ -117,5 +118,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=None,  # Add path to .ico file if you have one
+    icon='devdev.ico',  # Custom icon for the executable
 )

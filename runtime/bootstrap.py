@@ -222,6 +222,9 @@ class MacroEngine:
         self.running = True
         logger.info("Starting Macro Engine...")
         
+        # Show visual confirmation
+        self.show_startup_notification()
+        
         # Start statistics session
         try:
             from utils.statistics import get_tracker
@@ -250,8 +253,34 @@ class MacroEngine:
                 signal.pause()
             except AttributeError:
                 import time
+                import time
                 while self.running:
                     time.sleep(1)
+
+    def show_startup_notification(self):
+        """Show startup notification via subprocess"""
+        try:
+            import subprocess
+            import json
+            dialog_script = PROJECT_ROOT / "ui" / "dialogs.py"
+            data = json.dumps({
+                "title": "Devd-Tools",
+                "message": "Engine Started & Ready! 🚀",
+                "duration": 3000
+            })
+            
+            is_frozen = getattr(sys, 'frozen', False)
+            if is_frozen:
+                cmd = [sys.executable, "dialog", "show_notification", data]
+            else:
+                cmd = [sys.executable, str(dialog_script), "show_notification", data]
+                
+            subprocess.Popen(
+                cmd,
+                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+            )
+        except Exception as e:
+            logger.error(f"Failed to show startup notification: {e}")
     
     def stop(self):
         """Stop the engine gracefully"""

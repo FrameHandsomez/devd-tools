@@ -33,6 +33,7 @@ def _create_root() -> tk.Tk:
     try:
         log_debug("Attempting to create ttkbootstrap Window (cyborg)...")
         root = tb.Window(themename="cyborg")
+        root.geometry('+10000+10000')  # Move offscreen immediately
         root.withdraw()
         root.attributes('-topmost', True)
         log_debug("ttkbootstrap Window created successfully")
@@ -43,6 +44,7 @@ def _create_root() -> tk.Tk:
         
         USE_FALLBACK_THEME = True
         root = tk.Tk()
+        root.geometry('+10000+10000')  # Move offscreen immediately
         root.withdraw()
         root.attributes('-topmost', True)
         return root
@@ -195,6 +197,10 @@ def ask_choice(title: str, message: str, choices: list[str]) -> Optional[int]:
     y = (root.winfo_screenheight() - 350) // 2
     root.geometry(f"+{x}+{y}")
     
+    # Reveal window after setup
+    root.deiconify()
+    root.attributes('-alpha', 1.0)
+    
     try:
         result = {"index": None}
         
@@ -341,51 +347,53 @@ def ask_choice(title: str, message: str, choices: list[str]) -> Optional[int]:
 
 def show_notification(title: str, message: str, duration: int = 3000):
     """Show a simple notification popup."""
-    global USE_FALLBACK_THEME
     
-    # Create root to hold the process
-    root = _create_root()
+    # Always use fallback to avoid ttkbootstrap root window artifact
     try:
-        # If fallback is active, don't use ToastNotification (needs tb style)
-        if USE_FALLBACK_THEME:
-            raise ImportError("Fallback theme active")
-
-        from ttkbootstrap.toast import ToastNotification
-        toast = ToastNotification(
-            title=title,
-            message=message,
-            duration=duration,
-            bootstyle="dark",
-            position=(None, None, 'sw') # bottom-right
-        )
-        toast.show_toast()
+        # Create simple notification window
+        root = tk.Tk()
+        root.overrideredirect(True)  # No title bar
+        root.attributes('-topmost', True)
+        root.configure(bg="#2d2d2d", highlightthickness=1, highlightbackground="#404040")
         
-        # Keep process alive until toast finishes
-        root.after(duration + 1000, root.destroy)
+        # Content
+        frame = tk.Frame(root, bg="#2d2d2d", padx=15, pady=10)
+        frame.pack(fill=BOTH, expand=YES)
+        
+        tk.Label(
+            frame, 
+            text=title, 
+            font=("Segoe UI", 10, "bold"), 
+            fg="white", 
+            bg="#2d2d2d"
+        ).pack(anchor="w")
+        
+        tk.Label(
+            frame, 
+            text=message, 
+            font=("Segoe UI", 9), 
+            fg="#cccccc", 
+            bg="#2d2d2d"
+        ).pack(anchor="w", pady=(5, 0))
+        
+        # Position bottom-right
+        root.update_idletasks()
+        width = root.winfo_reqwidth()
+        height = root.winfo_reqheight()
+        screen_width = root.winfo_screenwidth()
+        screen_height = root.winfo_screenheight()
+        x = screen_width - width - 20
+        y = screen_height - height - 60
+        root.geometry(f"{width}x{height}+{x}+{y}")
+        
+        # Auto close
+        root.after(duration, root.destroy)
         root.mainloop()
         
     except Exception as e:
         log_debug(f"Notification error: {e}")
-        try:
-            # Fallback to simple top-right window
-            root.deiconify()
-            root.title(title)
-            root.geometry("300x100-10+10") # Top-right
-            root.attributes('-topmost', True)
-            try:
-                 root.configure(bg="#2d2d2d")
-            except:
-                 pass
-            
-            lbl = tk.Label(root, text=f"{title}\n\n{message}", fg="white", bg="#2d2d2d", padx=20, pady=20)
-            lbl.pack(expand=True, fill=BOTH)
-            
-            # Auto close
-            root.after(duration, root.destroy)
-            root.mainloop()
-        except Exception as e2:
-             log_debug(f"Fallback notification failed: {e2}")
-             root.destroy()
+        import traceback
+        log_debug(traceback.format_exc())
 
 
 
