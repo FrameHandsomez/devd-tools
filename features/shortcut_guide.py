@@ -149,8 +149,14 @@ class ShortcutGuideFeature(BaseFeature):
         })
         
         try:
+            is_frozen = getattr(sys, 'frozen', False)
+            if is_frozen:
+                cmd = [sys.executable, "guide", data]
+            else:
+                cmd = [sys.executable, str(popup_runner), "guide", data]
+
             subprocess.Popen(
-                [sys.executable, str(popup_runner), "guide", data],
+                cmd,
                 creationflags=subprocess.CREATE_NO_WINDOW
             )
         except Exception as e:

@@ -301,6 +301,15 @@ def start():
                 print(f"Error launching settings: {e}")
                 sys.exit(1)
                 
+        # Handle Dialogs (frozen mode)
+        elif cmd_arg == "dialog" and len(sys.argv) >= 4:
+            try:
+                from ui.dialogs import process_dialog_command
+                process_dialog_command(sys.argv[2], sys.argv[3])
+                sys.exit(0)
+            except Exception:
+                sys.exit(1)
+
         # Handle Popups
         if len(sys.argv) >= 3 and cmd_arg in ["mode", "guide"]:
             try:

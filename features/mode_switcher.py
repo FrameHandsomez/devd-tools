@@ -53,7 +53,12 @@ class ModeSwitcherFeature(BaseFeature):
         dialog_script = Path(__file__).parent.parent / "ui" / "dialogs.py"
         
         try:
-            cmd = [sys.executable, str(dialog_script), command, json.dumps(data)]
+            is_frozen = getattr(sys, 'frozen', False)
+            if is_frozen:
+                 cmd = [sys.executable, "dialog", command, json.dumps(data)]
+            else:
+                 cmd = [sys.executable, str(dialog_script), command, json.dumps(data)]
+            
             # Run without window creation flag on Windows if possible, but keep simple for now
             creation_flags = 0
             if sys.platform == "win32":

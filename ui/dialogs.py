@@ -543,13 +543,8 @@ def ask_project_selection(
         root.destroy()
 
 
-if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        sys.exit(1)
-        
-    command = sys.argv[1]
-    data_str = sys.argv[2]
-    
+def process_dialog_command(command, data_str):
+    import json
     try:
         data = json.loads(data_str)
         result = None
@@ -611,5 +606,12 @@ if __name__ == "__main__":
         # Print to stderr so parent process can capture it
         sys.stderr.write(f"{e}\n")
         sys.exit(1)
+
+
+if __name__ == "__main__":
+    if len(sys.argv) < 3:
+        sys.exit(1)
+        
+    process_dialog_command(sys.argv[1], sys.argv[2])
 
 

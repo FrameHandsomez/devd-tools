@@ -288,7 +288,11 @@ class TerminalQuickFeature(BaseFeature):
         })
         
         try:
-            cmd = [sys.executable, str(dialog_script), "ask_project_selection", data]
+            is_frozen = getattr(sys, 'frozen', False)
+            if is_frozen:
+                cmd = [sys.executable, "dialog", "ask_project_selection", data]
+            else:
+                cmd = [sys.executable, str(dialog_script), "ask_project_selection", data]
             result_proc = subprocess.run(cmd, capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
             
             if result_proc.returncode != 0:
@@ -366,7 +370,10 @@ class TerminalQuickFeature(BaseFeature):
                 "choices": options
             })
             
-            cmd_launch = [sys.executable, str(dialog_script), "ask_choice", launch_data]
+            if is_frozen:
+                 cmd_launch = [sys.executable, "dialog", "ask_choice", launch_data]
+            else:
+                 cmd_launch = [sys.executable, str(dialog_script), "ask_choice", launch_data]
             launch_res = subprocess.run(cmd_launch, capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
             
             if launch_res.returncode == 0 and launch_res.stdout.strip():
@@ -421,8 +428,14 @@ class TerminalQuickFeature(BaseFeature):
             "duration": 2000
         })
         try:
+             is_frozen = getattr(sys, 'frozen', False)
+             if is_frozen:
+                 cmd = [sys.executable, "dialog", "show_notification", data]
+             else:
+                 cmd = [sys.executable, str(dialog_script), "show_notification", data]
+                 
              subprocess.Popen(
-                [sys.executable, str(dialog_script), "show_notification", data],
+                cmd,
                 creationflags=subprocess.CREATE_NO_WINDOW
             )
         except:
