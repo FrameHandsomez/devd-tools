@@ -13,6 +13,8 @@ block_cipher = None
 # Get project root
 SPEC_ROOT = Path(SPECPATH)
 
+from PyInstaller.utils.hooks import collect_data_files
+
 # Collect all Python files from features, core, ui, utils, inputs, runtime
 a = Analysis(
     ['main.py'],
@@ -22,7 +24,7 @@ a = Analysis(
         # Include config files
         ('config', 'config'),
         # Include any asset files if needed
-    ],
+    ] + collect_data_files('ttkbootstrap'),
     hiddenimports=[
         # Tkinter
         'tkinter',
@@ -102,7 +104,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='jr-dev',
+    name='devd-tool',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

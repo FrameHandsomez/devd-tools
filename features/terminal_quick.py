@@ -391,17 +391,7 @@ class TerminalQuickFeature(BaseFeature):
                 elif choice_idx == 1: # WSL
                     self._launch_wsl(project_path)
                 elif choice_idx == 2: # Docker Logs
-                    path_str = str(project_path)
-                    cmd = "docker compose logs -f --tail 100"
-                    try:
-                        import shutil
-                        wt_path = shutil.which("wt")
-                        if wt_path:
-                            subprocess.Popen(f'wt.exe -d "{path_str}" cmd /k "{cmd}"', shell=True)
-                        else:
-                            subprocess.Popen(f'start cmd /k "cd /d {path_str} && {cmd}"', shell=True)
-                    except:
-                        pass
+                    self._launch_wsl(project_path, command="docker compose logs -f --tail 100")
                 elif choice_idx == 3: # WSL + Docker Compose Up
                     self._launch_wsl(project_path, command="docker compose up -d")
                 elif choice_idx == 4: # WSL + Docker Compose Down

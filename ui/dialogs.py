@@ -21,13 +21,31 @@ from utils.logger import get_logger
 logger = get_logger(__name__)
 
 
-def _create_root() -> tb.Window:
-    """Create a hidden root window for dialogs"""
-    # Use 'cyborg' for a cool dark theme
-    root = tb.Window(themename="cyborg")
-    root.withdraw()
-    root.attributes('-topmost', True)
-    return root
+
+# Global flag for fallback mode
+USE_FALLBACK_THEME = False
+
+def _create_root() -> tk.Tk:
+    """Create a hidden root window for dialogs with fallback"""
+    global USE_FALLBACK_THEME
+    
+    # Try ttkbootstrap first
+    try:
+        log_debug("Attempting to create ttkbootstrap Window (cyborg)...")
+        root = tb.Window(themename="cyborg")
+        root.withdraw()
+        root.attributes('-topmost', True)
+        log_debug("ttkbootstrap Window created successfully")
+        return root
+    except Exception as e:
+        log_debug(f"ttkbootstrap failed: {e}")
+        log_debug("Falling back to standard tk.Tk")
+        
+        USE_FALLBACK_THEME = True
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes('-topmost', True)
+        return root
 
 
 def ask_yes_no(title: str, message: str) -> bool:
@@ -145,13 +163,32 @@ def ask_folder_path(title: str = "Select Folder") -> Optional[str]:
 
 def ask_choice(title: str, message: str, choices: list[str]) -> Optional[int]:
     """Ask user to choose from a list of options."""
-    # For single-process dialogs, use root directly
-    root = tb.Window(themename="cyborg")
-    root.title(title)
-    root.geometry("400x350")
-    root.resizable(False, False)
-    root.attributes('-topmost', True)
+    global USE_FALLBACK_THEME
     
+    root = None
+    try:
+        # Try ttkbootstrap first
+        log_debug("ask_choice: Creating Window...")
+        root = tb.Window(themename="cyborg")
+        root.title(title)
+        root.geometry("400x350")
+        root.resizable(False, False)
+        root.attributes('-topmost', True)
+        
+    except Exception as e:
+        log_debug(f"ask_choice: Theme init failed ({e}), using fallback")
+        USE_FALLBACK_THEME = True
+        root = tk.Tk()
+        root.title(title)
+        root.geometry("400x350")
+        root.resizable(False, False)
+        root.attributes('-topmost', True)
+        # Ensure dark bg for consistent look if possible, or just standard
+        try:
+             root.configure(bg="#2d2d2d")
+        except:
+             pass
+
     # Center
     root.update_idletasks()
     x = (root.winfo_screenwidth() - 400) // 2
@@ -161,17 +198,30 @@ def ask_choice(title: str, message: str, choices: list[str]) -> Optional[int]:
     try:
         result = {"index": None}
         
-        main_frame = tb.Frame(root, padding=20)
+        # Use appropriate frame class
+        if not USE_FALLBACK_THEME:
+            main_frame = tb.Frame(root, padding=20)
+        else:
+            main_frame = tk.Frame(root, padx=20, pady=20, bg="#2d2d2d")
+            
         main_frame.pack(fill=BOTH, expand=YES)
         
-        tb.Label(main_frame, text=message, font=("Segoe UI", 11)).pack(anchor="w", pady=(0, 10))
+        # Label
+        if not USE_FALLBACK_THEME:
+            tb.Label(main_frame, text=message, font=("Segoe UI", 11)).pack(anchor="w", pady=(0, 10))
+        else:
+            tk.Label(main_frame, text=message, font=("Segoe UI", 11), bg="#2d2d2d", fg="white").pack(anchor="w", pady=(0, 10))
         
         if len(choices) <= 8:
             # Button list style
-            # Manual scrollable frame using Canvas for compatibility
-            canvas = tb.Canvas(main_frame, bd=0, highlightthickness=0)
-            scrollbar = tb.Scrollbar(main_frame, command=canvas.yview)
-            scroll_frame = tb.Frame(canvas)
+            if not USE_FALLBACK_THEME:
+                canvas = tb.Canvas(main_frame, bd=0, highlightthickness=0)
+                scrollbar = tb.Scrollbar(main_frame, command=canvas.yview)
+                scroll_frame = tb.Frame(canvas)
+            else:
+                canvas = tk.Canvas(main_frame, bd=0, highlightthickness=0, bg="#2d2d2d")
+                scrollbar = tk.Scrollbar(main_frame, command=canvas.yview)
+                scroll_frame = tk.Frame(canvas, bg="#2d2d2d")
             
             scroll_frame.bind(
                 "<Configure>",
@@ -191,19 +241,33 @@ def ask_choice(title: str, message: str, choices: list[str]) -> Optional[int]:
             canvas.bind_all("<MouseWheel>", _on_mousewheel)
             
             for i, choice in enumerate(choices):
-                style = "primary-outline" if i == 0 else "secondary-outline"
-                if "Delete" in choice or "Remove" in choice or "Discard" in choice:
-                    style = "danger-outline"
-                elif "Confirm" in choice or "Success" in choice or "Commit" in choice:
-                    style = "success-outline"
-                
-                btn = tb.Button(
-                    scroll_frame, 
-                    text=choice, 
-                    command=lambda idx=i: [result.update({"index": idx}), root.destroy()],
-                    bootstyle=style,
-                    width=30
-                )
+                # Button Styling
+                if not USE_FALLBACK_THEME:
+                    style = "primary-outline" if i == 0 else "secondary-outline"
+                    if "Delete" in choice or "Remove" in choice or "Discard" in choice:
+                        style = "danger-outline"
+                    elif "Confirm" in choice or "Success" in choice or "Commit" in choice:
+                        style = "success-outline"
+                    
+                    btn = tb.Button(
+                        scroll_frame, 
+                        text=choice, 
+                        command=lambda idx=i: [result.update({"index": idx}), root.destroy()],
+                        bootstyle=style,
+                        width=30
+                    )
+                else:
+                    # Fallback standard button
+                    btn = tk.Button(
+                        scroll_frame,
+                        text=choice,
+                        command=lambda idx=i: [result.update({"index": idx}), root.destroy()],
+                        width=30,
+                        bg="#3d3d3d", fg="white",
+                        activebackground="#505050", activeforeground="white",
+                        relief="flat"
+                    )
+
                 btn.pack(fill=X, pady=2)
                 
                 # Bind numbers
@@ -211,11 +275,19 @@ def ask_choice(title: str, message: str, choices: list[str]) -> Optional[int]:
                     root.bind(str(i+1), lambda e, idx=i: [result.update({"index": idx}), root.destroy()])
             
         else:
-            # Fallback to Listbox for many items
-            list_frame = tb.Frame(main_frame)
+            # Fallback to Listbox
+            if not USE_FALLBACK_THEME:
+                list_frame = tb.Frame(main_frame)
+            else:
+                list_frame = tk.Frame(main_frame, bg="#2d2d2d")
+                
             list_frame.pack(fill=BOTH, expand=YES)
             
-            scrollbar = tb.Scrollbar(list_frame)
+            if not USE_FALLBACK_THEME:
+                scrollbar = tb.Scrollbar(list_frame)
+            else:
+                scrollbar = tk.Scrollbar(list_frame)
+                
             scrollbar.pack(side=RIGHT, fill=Y)
             
             listbox = tk.Listbox(
@@ -236,33 +308,32 @@ def ask_choice(title: str, message: str, choices: list[str]) -> Optional[int]:
                     result["index"] = listbox.curselection()[0]
                 root.destroy()
             
-            tb.Button(main_frame, text="Select", command=on_select, bootstyle="primary").pack(fill=X, pady=(15, 0))
+            if not USE_FALLBACK_THEME:
+                tb.Button(main_frame, text="Select", command=on_select, bootstyle="primary").pack(fill=X, pady=(15, 0))
+            else:
+                tk.Button(main_frame, text="Select", command=on_select, bg="#007bff", fg="white").pack(fill=X, pady=(15, 0))
             
             root.bind('<Return>', lambda e: on_select())
             root.bind('<Double-1>', lambda e: on_select())
 
         root.bind('<Escape>', lambda e: root.destroy())
         
-        # Important: Mainloop for root window interaction
         root.mainloop()
         
         return result["index"]
         
     except Exception as e:
-        logger.error(f"Error in choice dialog: {e}")
-        import sys
-        print(f"Dialog Error: {e}", file=sys.stderr)
+        log_debug(f"Error in choice dialog: {e}")
+        import traceback
+        log_debug(traceback.format_exc())
         return None
     finally:
-        # Unbind global mousewheel to avoid side effects
         try:
              root.unbind_all("<MouseWheel>")
         except:
              pass
-             
-        # root.destroy() is usually called by the triggers above, but if exception happens:
         try:
-            if 'root' in locals() and root.winfo_exists():
+            if 'root' in locals() and root and root.winfo_exists():
                 root.destroy()
         except:
             pass
@@ -270,9 +341,15 @@ def ask_choice(title: str, message: str, choices: list[str]) -> Optional[int]:
 
 def show_notification(title: str, message: str, duration: int = 3000):
     """Show a simple notification popup."""
+    global USE_FALLBACK_THEME
+    
     # Create root to hold the process
     root = _create_root()
     try:
+        # If fallback is active, don't use ToastNotification (needs tb style)
+        if USE_FALLBACK_THEME:
+            raise ImportError("Fallback theme active")
+
         from ttkbootstrap.toast import ToastNotification
         toast = ToastNotification(
             title=title,
@@ -283,14 +360,32 @@ def show_notification(title: str, message: str, duration: int = 3000):
         )
         toast.show_toast()
         
-        # Keep process alive until toast finishes (duration is in ms)
-        # Add a small buffer (1000ms) to ensure fade out completes
+        # Keep process alive until toast finishes
         root.after(duration + 1000, root.destroy)
         root.mainloop()
         
     except Exception as e:
-        logger.error(f"Notification error: {e}")
-        root.destroy()
+        log_debug(f"Notification error: {e}")
+        try:
+            # Fallback to simple top-right window
+            root.deiconify()
+            root.title(title)
+            root.geometry("300x100-10+10") # Top-right
+            root.attributes('-topmost', True)
+            try:
+                 root.configure(bg="#2d2d2d")
+            except:
+                 pass
+            
+            lbl = tk.Label(root, text=f"{title}\n\n{message}", fg="white", bg="#2d2d2d", padx=20, pady=20)
+            lbl.pack(expand=True, fill=BOTH)
+            
+            # Auto close
+            root.after(duration, root.destroy)
+            root.mainloop()
+        except Exception as e2:
+             log_debug(f"Fallback notification failed: {e2}")
+             root.destroy()
 
 
 
@@ -543,31 +638,65 @@ def ask_project_selection(
         root.destroy()
 
 
+
+# Setup debug logger for EXE troubleshooting
+def setup_debug_logger():
+    try:
+        log_path = os.path.join(os.path.dirname(sys.executable), 'dialog_debug.log')
+        if not getattr(sys, 'frozen', False):
+             log_path = 'dialog_debug.log'
+             
+        import logging
+        logging.basicConfig(
+            filename=log_path,
+            level=logging.DEBUG,
+            format='%(asctime)s - %(levelname)s - %(message)s'
+        )
+        return logging.getLogger('dialog_debugger')
+    except:
+        return None
+
+debug_logger = setup_debug_logger()
+
+def log_debug(msg):
+    if debug_logger:
+        debug_logger.debug(msg)
+    # Also print to stderr for parent capture
+    # sys.stderr.write(f"DEBUG: {msg}\n")
+
 def process_dialog_command(command, data_str):
     import json
+    log_debug(f"Processing command: {command}")
+    
     try:
         data = json.loads(data_str)
+        log_debug(f"Payload: {data}")
+        
         result = None
         
         if command == "ask_choice":
+            log_debug("Calling ask_choice...")
             result = ask_choice(
                 title=data.get("title", "Choice"),
                 message=data.get("message", "Select option:"),
                 choices=data.get("choices", [])
             )
-            # Output MUST be just the JSON to stdout
+            log_debug(f"ask_choice result: {result}")
             print(json.dumps({"result": result}))
             
         elif command == "ask_project_selection":
+            log_debug("Calling ask_project_selection...")
             result = ask_project_selection(
                 projects=data.get("projects", []),
                 title=data.get("title", "Select Project"),
                 allow_add=data.get("allow_add", True),
                 allow_remove=data.get("allow_remove", True)
             )
+            log_debug(f"ask_project_selection result: {result}")
             print(json.dumps({"result": result}))
             
         elif command == "show_notification":
+            log_debug("Calling show_notification...")
             show_notification(
                 title=data.get("title", "Notification"),
                 message=data.get("message", ""),
@@ -602,6 +731,10 @@ def process_dialog_command(command, data_str):
             )
             
     except Exception as e:
+        log_debug(f"FATAL ERROR in process_dialog_command: {e}")
+        import traceback
+        log_debug(traceback.format_exc())
+        
         logger.error(f"Process error: {e}")
         # Print to stderr so parent process can capture it
         sys.stderr.write(f"{e}\n")
@@ -609,9 +742,17 @@ def process_dialog_command(command, data_str):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
+    try:
+        if len(sys.argv) < 3:
+            sys.exit(1)
+            
+        log_debug(f"Dialog Process Started. Args: {sys.argv}")
+        process_dialog_command(sys.argv[1], sys.argv[2])
+        log_debug("Dialog Process Finished Successfully")
+    except Exception as e:
+        log_debug(f"Top-level script error: {e}")
+        import traceback
+        log_debug(traceback.format_exc())
         sys.exit(1)
-        
-    process_dialog_command(sys.argv[1], sys.argv[2])
 
 

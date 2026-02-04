@@ -1,6 +1,6 @@
 {
     "version": "2.0",
-    "current_mode": "DEV",
+    "current_mode": "DOCKER",
     "modes": {
         "DEV": {
             "name": "Development Mode",
@@ -216,7 +216,7 @@
         ],
         "terminal_project_active": "C:\\Users\\Cite\\Documents\\Github\\service-repair",
         "docker_project_list": [],
-        "docker_project_active": "C:\\Users\\Cite\\Documents\\Github\\jr-dev"
+        "docker_project_active": "D:\\54842\\docker-bl\\redis"
     },
     "quick_panel": {
         "visible": false,

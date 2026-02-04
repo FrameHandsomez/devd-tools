@@ -115,7 +115,137 @@ class DockerManagerFeature(BaseFeature):
         if not self._is_dialog_open:
             self._show_project_selector_async()
             
-        return None
+    def _run_terminal_command(self, path_str: str, wsl_command: str = None, cmd_command: str = None) -> bool:
+        """Helper to run a terminal command in a new window (preferring Windows Terminal)"""
+        try:
+            wt_path = shutil.which("wt")
+            
+            # Escape inner quotes for command arguments
+            if wsl_command:
+                # wsl_command is something like: -e bash -c "..."
+                # We need to be careful with escaping
+                pass 
+                
+            if wt_path:
+                if wsl_command:
+                     # wt.exe -d "path" -- wsl.exe [args]
+                     cmd_str = f'wt.exe -d "{path_str}" -- wsl.exe {wsl_command}'
+                else:
+                     # wt.exe -d "path" cmd /k "..."
+                     cmd_str = f'wt.exe -d "{path_str}" cmd /k "{cmd_command}"'
+                
+                subprocess.Popen(cmd_str, shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
+            else:
+                if wsl_command:
+                    # Direct wsl
+                    cmd_str = f'start wsl.exe --cd "{path_str}" {wsl_command}'
+                else:
+                    # Direct cmd
+                    cmd_str = f'start cmd /k "cd /d {path_str} && {cmd_command}"'
+                
+                subprocess.Popen(cmd_str, shell=True)
+            return True
+        except Exception as e:
+            logger.error(f"Failed to launch terminal: {e}")
+            return False
+
+    def _run_compose(self, project_path: Path, args: str, title: str) -> FeatureResult:
+        """Run docker-compose command"""
+        if not (project_path / "docker-compose.yml").exists() and not (project_path / "docker-compose.yaml").exists():
+             return FeatureResult(
+                status=FeatureStatus.ERROR,
+                message="No docker-compose.yml found"
+            )
+            
+        path_str = str(project_path)
+        docker_cmd = f"docker compose {args}"
+        
+        logger.info(f"Running: {docker_cmd} in {path_str}")
+        
+        # Use && and || to avoid semicolon issue in wt.exe
+        wsl_args = f'-e bash -c "{docker_cmd} && exec bash || exec bash"'
+        
+        if self._run_terminal_command(path_str, wsl_command=wsl_args):
+            return FeatureResult(status=FeatureStatus.SUCCESS, message=f"Executed {title}")
+        else:
+            return FeatureResult(status=FeatureStatus.ERROR, message=f"Failed: {title}")
+
+    def _get_docker_services(self, project_path: Path) -> list[str]:
+        """Get list of services from docker-compose"""
+        path_str = str(project_path)
+        try:
+             # Run docker compose config --services to get list
+             # Use wsl if on windows and not using docker desktop natively?
+             # Assuming wsl environment as established
+             
+             cmd = f'wsl.exe --cd "{path_str}" -e bash -c "docker compose config --services"'
+             
+             result = subprocess.run(
+                 cmd, 
+                 capture_output=True, 
+                 text=True, 
+                 creationflags=subprocess.CREATE_NO_WINDOW
+             )
+             
+             if result.returncode == 0:
+                 services = [s.strip() for s in result.stdout.splitlines() if s.strip()]
+                 return services
+             else:
+                 logger.error(f"Failed to get services: {result.stderr}")
+                 return []
+        except Exception as e:
+            logger.error(f"Error getting services: {e}")
+            return []
+
+    def _select_service_and_open_logs(self, project_path: Path):
+        """Show dialog to select service then open logs"""
+        services = self._get_docker_services(project_path)
+        if not services:
+            self._run_notification_subprocess("❌ Error", "No services found or failed to list services")
+            return
+
+        result_data = self._run_dialog_subprocess("ask_choice", {
+            "title": "Select Service",
+            "message": "Choose service to view logs:",
+            "choices": services
+        })
+        
+        if result_data and result_data.get("result") is not None:
+            idx = result_data.get("result")
+            if 0 <= idx < len(services):
+                self._open_logs(project_path, service_name=services[idx])
+
+    def _open_logs(self, project_path: Path, service_name: str = None) -> FeatureResult:
+        """Open logs in terminal"""
+        path_str = str(project_path)
+        
+        if service_name:
+            docker_cmd = f"docker compose logs -f --tail 100 {service_name}"
+            msg = f"Opening logs for {service_name}..."
+        else:
+            docker_cmd = "docker compose logs -f --tail 100"
+            msg = "Opening all logs..."
+        
+        # Use && and || to ensure bash runs after (keeps window open), preventing 'wt' from splitting at semicolon
+        wsl_args = f'-e bash -c "{docker_cmd} && exec bash || exec bash"'
+        
+        # Consistent with _run_compose, run in WSL
+        if self._run_terminal_command(path_str, wsl_command=wsl_args):
+            return FeatureResult(status=FeatureStatus.SUCCESS, message=msg)
+        else:
+            return FeatureResult(status=FeatureStatus.ERROR, message="Failed to open logs")
+
+    def _show_docker_menu_async(self) -> FeatureResult:
+        """Show docker menu in separate thread"""
+        def run_dialog():
+            self._is_dialog_open = True
+            try:
+                self._show_docker_menu()
+            finally:
+                self._is_dialog_open = False
+        import threading
+        threading.Thread(target=run_dialog, daemon=True).start()
+        return FeatureResult(status=FeatureStatus.SUCCESS, message="Opening Docker menu...")
 
     def _show_docker_menu(self):
         """Show docker actions menu"""
@@ -128,7 +258,8 @@ class DockerManagerFeature(BaseFeature):
                 "🛑 Docker Down", 
                 "🔄 Restart",
                 "📊 Status (ps)",
-                "📝 View Logs",
+                "📝 View Logs (All)",
+                "🔍 View Service Logs",
                 "📂 Select Project"
             ]
             
@@ -146,7 +277,7 @@ class DockerManagerFeature(BaseFeature):
             if choice_idx is None:
                 return
     
-            if not active and choice_idx != 5:
+            if not active and choice_idx != 6:
                  self._run_notification_subprocess("❌ Error", "No project selected")
                  return
     
@@ -158,9 +289,11 @@ class DockerManagerFeature(BaseFeature):
                 self._run_compose(active, "restart", "🔄 Restart")
             elif choice_idx == 3: # Status
                 self._run_compose(active, "ps -a", "📊 Status")
-            elif choice_idx == 4: # Logs
+            elif choice_idx == 4: # Logs All
                 self._open_logs(active)
-            elif choice_idx == 5: # Select
+            elif choice_idx == 5: # Service Logs
+                self._select_service_and_open_logs(active)
+            elif choice_idx == 6: # Select
                 self._show_project_selector()
                 # Re-open menu
                 # self._show_docker_menu() # Avoid recursion loop risk if selector fails
@@ -224,5 +357,63 @@ class DockerManagerFeature(BaseFeature):
             if removed:
                 self._run_notification_subprocess("🗑️ Project Removed", f"Removed: {result['project']['name']}")
             
-            # Re-open selector
-            self._show_project_selector()
+    def _run_dialog_subprocess(self, command, data):
+        """Helper to run dialog subprocess"""
+        import sys
+        
+        dialog_script = Path(__file__).parent.parent / "ui" / "dialogs.py"
+        try:
+            is_frozen = getattr(sys, 'frozen', False)
+            if is_frozen:
+                cmd = [sys.executable, "dialog", command, json.dumps(data)]
+            else:
+                cmd = [sys.executable, str(dialog_script), command, json.dumps(data)]
+
+            # Run without window creation flag on Windows
+            creation_flags = 0
+            if sys.platform == "win32":
+                creation_flags = subprocess.CREATE_NO_WINDOW
+                
+            result = subprocess.run(
+                cmd, 
+                capture_output=True, 
+                text=True, 
+                creationflags=creation_flags,
+                encoding='utf-8', 
+                errors='replace'
+            )
+            
+            if result.returncode != 0:
+                logger.error(f"Dialog error ({command}): {result.stderr}")
+                return None
+                
+            if not result.stdout.strip():
+                return None
+                
+            return json.loads(result.stdout)
+        except Exception as e:
+            logger.error(f"Subprocess failed: {e}")
+            return None
+
+    def _run_notification_subprocess(self, title, message):
+        """Helper to show notification via subprocess"""
+        # Fire and forget
+        dialog_script = Path(__file__).parent.parent / "ui" / "dialogs.py"
+        data = json.dumps({
+            "title": title,
+            "message": message,
+            "duration": 2000
+        })
+        try:
+             is_frozen = getattr(sys, 'frozen', False)
+             if is_frozen:
+                 cmd = [sys.executable, "dialog", "show_notification", data]
+             else:
+                 cmd = [sys.executable, str(dialog_script), "show_notification", data]
+                 
+             subprocess.Popen(
+                cmd,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+        except:
+            pass

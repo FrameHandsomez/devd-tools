@@ -1,23 +1,23 @@
 {
   "total_key_presses": 0,
-  "total_feature_executions": 408,
+  "total_feature_executions": 456,
   "total_mode_changes": 0,
   "total_commits": 12,
-  "total_sessions": 73,
+  "total_sessions": 83,
   "total_session_minutes": 0,
   "first_use_date": "2026-01-21T21:28:47.660740",
-  "last_use_date": "2026-02-04T14:38:22.400117",
+  "last_use_date": "2026-02-04T16:16:39.240553",
   "feature_usage": {
     "shortcut_guide": 91,
-    "mode_switcher": 123,
-    "git_commit": 34,
+    "mode_switcher": 146,
+    "git_commit": 35,
     "frontend_runner": 49,
-    "terminal_quick": 49,
+    "terminal_quick": 50,
     "clone_project": 4,
     "git_status": 3,
-    "ai_assistant": 25,
+    "ai_assistant": 27,
     "snippet_tool": 2,
-    "docker_manager": 28
+    "docker_manager": 49
   },
   "mode_usage": {},
   "daily_stats": {
@@ -53,7 +53,7 @@
     },
     "2026-02-04": {
       "key_presses": 0,
-      "executions": 204,
+      "executions": 252,
       "mode_changes": 0
     }
   },
