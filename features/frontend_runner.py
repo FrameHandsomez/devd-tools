@@ -161,10 +161,11 @@ class FrontendRunnerFeature(BaseFeature):
         """Normalize path string to proper Path object - handles all formats"""
         if not path_str:
             return None
-        
+        import os
         try:
+            expanded = os.path.expandvars(path_str)
             # Replace forward slashes with backslashes for Windows consistency
-            normalized = path_str.replace('/', '\\')
+            normalized = expanded.replace('/', '\\')
             path = Path(normalized)
             
             # Resolve to get absolute path with consistent format

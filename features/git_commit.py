@@ -65,8 +65,10 @@ class GitCommitFeature(BaseFeature):
         
         # Convert to Path object and resolve to absolute path
         try:
+            import os
+            expanded = os.path.expandvars(path_str)
             # Replace forward slashes with backslashes for Windows consistency
-            normalized = path_str.replace('/', '\\')
+            normalized = expanded.replace('/', '\\')
             path = Path(normalized)
             
             # Resolve to get absolute path with consistent format
