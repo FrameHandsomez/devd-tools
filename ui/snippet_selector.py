@@ -101,12 +101,30 @@ class SnippetSelector(tk.Toplevel):
             textvariable=self.search_var,
             font=("Segoe UI", 12),
             bg="#252526",
-            fg="white",
+            fg="#888888", # Start with placeholder color
             relief="flat",
             insertbackground="white",
             bd=5
         )
         self.search_entry.pack(fill="x", ipady=4)
+        
+        # Placeholder logic
+        self.placeholder_text = "Type to search snippets..."
+        self.search_entry.insert(0, self.placeholder_text)
+        
+        def on_focus_in(event):
+            if self.search_entry.get() == self.placeholder_text:
+                self.search_entry.delete(0, tk.END)
+                self.search_entry.config(fg="white")
+                
+        def on_focus_out(event):
+            if not self.search_entry.get():
+                self.search_entry.insert(0, self.placeholder_text)
+                self.search_entry.config(fg="#888888")
+
+        self.search_entry.bind("<FocusIn>", on_focus_in)
+        self.search_entry.bind("<FocusOut>", on_focus_out)
+        
         self.search_entry.bind("<KeyRelease>", self._on_search)
         self.search_entry.bind("<Down>", lambda e: self.result_list.focus_set())
         self.search_entry.bind("<Return>", lambda e: self._on_confirm())
@@ -273,20 +291,34 @@ class SnippetSelector(tk.Toplevel):
 
     def _on_confirm(self, event=None):
         selection = self.result_list.curselection()
-        if not selection:
+        
+        # Prio 1: Selected item in list
+        if selection:
+            index = selection[0]
+            if index < len(self.current_matches):
+                snippet = self.current_matches[index]
+                self.selected_snippet = snippet
+                
+                # Check variables
+                required_vars = self.snippet_manager.get_required_variables(snippet)
+                if required_vars:
+                    self.show_input_view(required_vars)
+                else:
+                    self._finalize_selection(snippet)
             return
-            
-        index = selection[0]
-        if index < len(self.current_matches):
-            snippet = self.current_matches[index]
-            self.selected_snippet = snippet
-            
-            # Check variables
-            required_vars = self.snippet_manager.get_required_variables(snippet)
-            if required_vars:
-                self.show_input_view(required_vars)
-            else:
-                self._finalize_selection(snippet)
+
+        # Prio 2: Raw text (Smart Terminal / Quick Prompt)
+        # If no selection, check if we have search text
+        text = self.search_var.get().strip()
+        if text and text != self.placeholder_text:
+            # Create a "virtual" snippet for raw text
+            raw_snippet = {
+                "trigger": "raw",
+                "content": text,
+                "description": "Raw Input",
+                "is_raw": True 
+            }
+            self._finalize_selection(raw_snippet)
 
     def _submit_variables(self):
         variables = {}
@@ -350,7 +382,12 @@ class SnippetSelector(tk.Toplevel):
     def _on_search(self, event):
         if event.keysym in ("Up", "Down", "Return", "Escape"):
             return
-        self._populate_list(self.search_var.get())
+            
+        text = self.search_var.get()
+        if text == self.placeholder_text:
+            text = ""
+            
+        self._populate_list(text)
 
     def _on_escape(self, event):
         if self.input_view.winfo_viewable():

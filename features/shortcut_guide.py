@@ -87,7 +87,8 @@ class ShortcutGuideFeature(BaseFeature):
                     "review_secure": "Code Review",
                     "explain_code": "Explain Code",
                     "bug_fix": "Fix Bugs",
-                    "launch_snippets": "Snippet Tool"
+                    "launch_snippets": "Snippet Tool",
+                    "launch_smart_terminal": "Smart Terminal"
                 }
                 display_action = display_map.get(action_name, action_name.replace("_", " ").title())
                 

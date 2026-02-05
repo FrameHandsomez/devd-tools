@@ -502,7 +502,7 @@ class GitCommitFeature(BaseFeature):
             
             self._show_notification_async(
                 "✨ AI Prompt Ready",
-                "Prompt copied! Paste in ChatGPT to get commit message."
+                "Prompt Copied! Please Paste (Ctrl+V) in ChatGPT"
             )
             
         except Exception as e:

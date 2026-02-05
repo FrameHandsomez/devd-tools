@@ -328,7 +328,7 @@ class AIAssistantFeature(BaseFeature):
             # Show notification
             self._show_notification_async(
                 f"✅ {title}",
-                "Prompt copied! วาง (Ctrl+V) ใน ChatGPT ได้เลย",
+                "Prompt Copied! Please Paste (Ctrl+V) in ChatGPT",
                 4000
             )
             

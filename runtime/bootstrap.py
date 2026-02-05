@@ -100,6 +100,7 @@ class MacroEngine:
             
         # Register snippet command
         self.command_executor.register_command("launch_snippets", self.launch_snippet_selector)
+        self.command_executor.register_command("launch_smart_terminal", self.launch_smart_selector)
             
         # 6.5. Initialize Tkinter Root and Quick Panel
         try:
@@ -211,11 +212,77 @@ class MacroEngine:
             except Exception as e:
                 logger.error(f"Failed to insert snippet: {e}")
 
-        # Launch UI on main thread (or ensure root is thread safe? Tkinter isn't)
-        # Since this is called from where?
-        # If called from a hotkey (background thread), we must use root.after
+        # Launch UI on main thread safely
+        def safe_launch():
+            try:
+                # Ensure root is available and normal
+                if not self.root: 
+                    logger.error("Root window is None, cannot launch snippets")
+                    return
+                
+                # Check if we are already showing it (prevent spam)
+                # ... implementation detail: SnippetSelector is modal-ish but runs in main loop
+                
+                logger.info("Launching Snippet Selector UI...")
+                SnippetSelector(self.root, self.snippet_manager, on_snippet_selected)
+            except Exception as e:
+                logger.error(f"CRASH PREVENTION: Failed to launch Snippet UI: {e}", exc_info=True)
+                
+        # Schedule on main thread
+        # Schedule on main thread
+        try:
+            self.root.after(0, safe_launch)
+        except Exception as e:
+             logger.error(f"Failed to schedule snippet launch: {e}")
         
-        self.root.after(0, lambda: SnippetSelector(self.root, self.snippet_manager, on_snippet_selected))
+    def launch_smart_selector(self):
+        """Launch the Snippet UI in Smart Terminal Mode"""
+        if not self.root: return
+        
+        from ui.snippet_selector import SnippetSelector
+        from features.smart_terminal import SmartTerminal
+        
+        from ui.snippet_selector import SnippetSelector
+        from features.smart_terminal import SmartTerminal
+        
+        def on_query_submitted(snippet, variables=None):
+            # In functionality, snippet will be the "raw_snippet" dict we created in UI
+            if isinstance(snippet, dict) and snippet.get("is_raw"):
+                query = snippet.get("content")
+                SmartTerminal.process_smart_query(query)
+            elif isinstance(snippet, dict):
+                # Fallback if they selected a real snippet in AI mode (why not?)
+                # Treat as prompt
+                SmartTerminal.process_smart_query(snippet.get("content"))
+            
+            # Show "Ctrl+V" Reminder
+            self._show_notification("✅ Prompt Copied!", "Please Paste (Ctrl+V) in ChatGPT", 5000)
+
+        def safe_launch_smart():
+            try:
+                SnippetSelector(self.root, self.snippet_manager, on_query_submitted)
+            except Exception as e:
+                logger.error(f"Failed to launch Smart Terminal UI: {e}")
+                
+        self.root.after(0, safe_launch_smart)
+
+    def _show_notification(self, title: str, message: str, duration: int = 3000):
+        """Helper to show notification via subprocess (non-blocking)"""
+        import subprocess
+        import sys
+        import json
+        from pathlib import Path
+        
+        dialog_script = Path(__file__).parent.parent / "ui" / "dialogs.py"
+        try:
+            cmd = [sys.executable, str(dialog_script), "show_notification", json.dumps({
+                "title": title, 
+                "message": message, 
+                "duration": duration
+            })]
+            subprocess.Popen(cmd, creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0)
+        except Exception as e:
+            logger.error(f"Failed to show notification: {e}")
     
     def start(self):
         """Start the engine"""

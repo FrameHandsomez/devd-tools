@@ -1,6 +1,6 @@
 {
     "version": "2.0",
-    "current_mode": "DOCKER",
+    "current_mode": "AI",
     "modes": {
         "DEV": {
             "name": "Development Mode",
