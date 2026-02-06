@@ -147,6 +147,111 @@ def ask_yes_no(title: str, message: str) -> bool:
             pass
 
 
+
+def ask_action_custom(title: str, message: str, buttons: list[str]) -> str:
+    """Show dialog with custom action buttons"""
+    global USE_FALLBACK_THEME
+    
+    root = None
+    try:
+        # Try ttkbootstrap first
+        log_debug("ask_action_custom: Creating Window...")
+        root = tb.Window(themename="cyborg")
+        root.title(title)
+        root.geometry("500x450")  # Increased height
+        root.resizable(True, True) # Allow resize
+        root.attributes('-topmost', True)
+        
+    except Exception as e:
+        log_debug(f"Theme init failed ({e}), using fallback")
+        USE_FALLBACK_THEME = True
+        root = tk.Tk()
+        root.title(title)
+        root.geometry("500x450") # Increased height
+        root.resizable(True, True) # Allow resize
+        root.attributes('-topmost', True)
+        try:
+            root.configure(bg="#2d2d2d")
+        except:
+            pass
+
+    # Center
+    root.update_idletasks()
+    x = (root.winfo_screenwidth() - 500) // 2
+    y = (root.winfo_screenheight() - 250) // 2
+    root.geometry(f"+{x}+{y}")
+    
+    # Reveal window
+    root.deiconify()
+    root.attributes('-alpha', 1.0)
+    
+    result = {"value": None}
+    
+    try:
+        # Main frame
+        if not USE_FALLBACK_THEME:
+            main_frame = tb.Frame(root, padding=20)
+        else:
+            main_frame = tk.Frame(root, padx=20, pady=20, bg="#2d2d2d")
+        main_frame.pack(fill=BOTH, expand=YES)
+        
+        # Message
+        if not USE_FALLBACK_THEME:
+            tb.Label(main_frame, text=message, font=("Segoe UI", 11), wraplength=460).pack(pady=(0, 20))
+        else:
+            tk.Label(main_frame, text=message, font=("Segoe UI", 11), bg="#2d2d2d", fg="white", wraplength=460).pack(pady=(0, 20))
+        
+        # Button frame
+        if not USE_FALLBACK_THEME:
+            btn_frame = tb.Frame(main_frame)
+        else:
+            btn_frame = tk.Frame(main_frame, bg="#2d2d2d")
+        btn_frame.pack(fill=X, side=BOTTOM, pady=10)
+        
+        def on_click(btn_text):
+            result["value"] = btn_text
+            root.destroy()
+            
+        # Create Buttons (Right to Left usually for actions)
+        # Pack buttons frame at bottom of main frame
+        for btn_text in buttons:
+            style = "secondary-outline"
+            # Use filled styles for better visibility on dark theme
+            if "Delete" in btn_text or "Prune" in btn_text or "Danger" in btn_text:
+                style = "danger" 
+            elif "Confirm" in btn_text or "Yes" in btn_text or "Save" in btn_text:
+                style = "success"
+            elif "Cancel" in btn_text or "No" in btn_text:
+                style = "secondary" # Filled secondary for visibility
+            
+            if not USE_FALLBACK_THEME:
+                # Add width to ensure buttons are large enough
+                b = tb.Button(btn_frame, text=btn_text, command=lambda t=btn_text: on_click(t), bootstyle=style, width=15)
+                b.pack(side=RIGHT, padx=5, pady=10)
+            else:
+                bg = "#6c757d" # secondary
+                if "Delete" in btn_text or "Prune" in btn_text: bg = "#dc3545" # danger
+                elif "Confirm" in btn_text: bg = "#28a745" # success
+                
+                b = tk.Button(btn_frame, text=btn_text, command=lambda t=btn_text: on_click(t), bg=bg, fg="white", width=15)
+                b.pack(side=RIGHT, padx=5, pady=10)
+
+        root.bind('<Escape>', lambda e: on_click(None))
+        
+        root.mainloop()
+        return result["value"]
+        
+    except Exception as e:
+        log_debug(f"ask_action_custom error: {e}")
+        return None
+    finally:
+        try:
+            if root and root.winfo_exists():
+                root.destroy()
+        except:
+            pass
+
+
 def ask_git_clone_info(default_path: str = "C:\\Projects") -> Optional[Tuple[str, str]]:
     """Ask user for Git URL and clone path."""
     root = _create_root()
@@ -962,6 +1067,14 @@ def process_dialog_command(command, data_str):
             result = ask_yes_no(
                 title=data.get("title", "Confirmation"),
                 message=data.get("message", "Are you sure?")
+            )
+            print(json.dumps({"result": result}))
+
+        elif command == "ask_action_custom":
+            result = ask_action_custom(
+                title=data.get("title", "Action"),
+                message=data.get("message", "Choose action"),
+                buttons=data.get("buttons", ["Cancel"])
             )
             print(json.dumps({"result": result}))
             
