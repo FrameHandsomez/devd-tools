@@ -263,9 +263,10 @@ class DockerManagerFeature(BaseFeature):
                 "🛑 Docker Down", 
                 "🔄 Restart",
                 "📊 Status (ps)",
-                "📝 View Logs (All)",
+
                 "🔍 View Service Logs",
-                "📂 Select Project"
+                "📂 Select Project",
+                "🧹 System Prune (Danger)"
             ]
             
             result_data = self._run_dialog_subprocess("ask_choice", {
@@ -282,7 +283,8 @@ class DockerManagerFeature(BaseFeature):
             if choice_idx is None:
                 return
     
-            if not active and choice_idx != 6:
+            # Allow Select (5) and Prune (6) without active project
+            if not active and choice_idx not in [5, 6]:
                  self._run_notification_subprocess("❌ Error", "No project selected")
                  return
     
@@ -294,14 +296,42 @@ class DockerManagerFeature(BaseFeature):
                 self._run_compose(active, "restart", "🔄 Restart")
             elif choice_idx == 3: # Status
                 self._run_compose(active, "ps -a", "📊 Status")
-            elif choice_idx == 4: # Logs All
-                self._open_logs(active)
-            elif choice_idx == 5: # Service Logs
+            elif choice_idx == 4: # Service Logs
                 self._select_service_and_open_logs(active)
-            elif choice_idx == 6: # Select
+            elif choice_idx == 5: # Select
                 if self._show_project_selector():
                     # Re-open menu with new project
                     self._show_docker_menu()
+            elif choice_idx == 6: # Prune
+                self._prune_system(active)
+
+    def _prune_system(self, active_project):
+        """Execute docker system prune with warning"""
+        # 1. Warning Dialog
+        res = self._run_dialog_subprocess("ask_yes_no", {
+            "title": "⚠️ DANGER: System Prune",
+            "message": "This command will DELETE:\n\n"
+                       "• All stopped containers\n"
+                       "• All unused networks\n"
+                       "• All dangling images\n"
+                       "• All build cache\n\n"
+                       "IMPORTANT: Ensure your containers are RUNNING!\n"
+                       "If they are stopped, they will be lost.\n\n"
+                       "Are you absolutely sure?"
+        })
+        
+        if not res or not res.get("result", False):
+            return
+            
+        # 2. Execute
+        # Use active project path if available, else user profile
+        import os
+        path = str(active_project) if active_project else os.path.expandvars("%USERPROFILE%")
+        
+        docker_cmd = "docker system prune -a --force"
+        wsl_args = f'-e bash -c "{docker_cmd} && echo -e \\"\n✅ Prune Complete\\" && read -p \\"Press Enter to close...\\" || read -p \\"Failed...\\""'
+        
+        self._run_terminal_command(path, wsl_args)
         except Exception as e:
             logger.error(f"Menu error: {e}")
             self._run_notification_subprocess("❌ Menu Error", str(e))
