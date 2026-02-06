@@ -308,9 +308,25 @@ def show_guide_popup(mode_name: str, guide_lines: list, is_notification: bool = 
                     tb.Label(tips_frame, text=tip, font=("Segoe UI", 10, "italic"), bootstyle="warning").pack(fill=X)
             
             # Footer - Increased padding for safety
-            footer = tb.Frame(inner, padding=20, bootstyle="secondary")
+            footer = tb.Frame(inner, padding=10, bootstyle="secondary")
             footer.pack(fill=X, side=BOTTOM)
-            tb.Label(footer, text="Press ESC or F12 to close", font=("Segoe UI", 9), bootstyle="inverse-secondary").pack()
+            
+            tb.Label(footer, text="Press ESC or F12 to close", font=("Segoe UI", 9), bootstyle="inverse-secondary").pack(side=LEFT)
+            
+            def open_settings():
+                import subprocess
+                import sys
+                from pathlib import Path
+                
+                settings_script = Path(__file__).parent / "settings_dialog.py"
+                
+                # Launch settings asynchronously
+                subprocess.Popen([sys.executable, str(settings_script)])
+                
+                # Close guide
+                fade_out()
+
+            tb.Button(footer, text="⚙️ Settings", command=open_settings, bootstyle="light-outline", padding=(10, 2)).pack(side=RIGHT)
         else:
              tb.Label(inner, text="Press F12 to view full guide", font=("Segoe UI", 12), justify="center").pack(expand=YES)
         

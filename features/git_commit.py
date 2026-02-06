@@ -476,9 +476,16 @@ class GitCommitFeature(BaseFeature):
         """Clone a git repository"""
         import os
         
+        # Reload config to get latest settings
+        self.config_manager.load()
+        
+        # Get settings
+        settings = self.config_manager.get("preferences", {})
+        default_path = settings.get("default_clone_path", "C:\\Projects")
+        
         # Get clone info from user
         result = self._run_dialog_subprocess("ask_git_clone_info", {
-            "default_path": "C:\\Projects"
+            "default_path": default_path
         })
         
         if not result or not result.get("git_url"):
@@ -543,10 +550,19 @@ class GitCommitFeature(BaseFeature):
             # Get basenames only
             basenames = [f.split('/')[-1] for f in files_changed]
             
+            # Reload config to get latest settings
+            self.config_manager.load()
+            
+            # Show preview dialog with scrollable file list
+            # Get settings
+            settings = self.config_manager.get("preferences", {})
+            default_lang = settings.get("default_commit_language")
+            
             # Show preview dialog with scrollable file list
             result = self._run_dialog_subprocess("ask_ai_commit_preview", {
                 "title": "✨ AI Auto-Commit",
-                "files": basenames
+                "files": basenames,
+                "default_lang": default_lang
             })
             
             if not result or not result.get("result"):

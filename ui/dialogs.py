@@ -722,7 +722,7 @@ def ask_project_selection(
         root.destroy()
 
 
-def ask_ai_commit_preview(files: list[str], title: str = "AI Auto-Commit") -> Optional[str]:
+def ask_ai_commit_preview(files: list[str], title: str = "AI Auto-Commit", default_lang: str = None) -> Optional[str]:
     """Show AI commit preview with scrollable file list. Returns 'en', 'th', or None for cancel."""
     global USE_FALLBACK_THEME
     
@@ -832,12 +832,19 @@ def ask_ai_commit_preview(files: list[str], title: str = "AI Auto-Commit") -> Op
             root.destroy()
         
         # Buttons
+        btn_en = None
+        btn_th = None
+        
         if not USE_FALLBACK_THEME:
-            tb.Button(btn_frame, text="🇺🇸 English", command=select_en, bootstyle="primary", width=15).pack(side=LEFT, padx=5, expand=YES)
-            tb.Button(btn_frame, text="🇹🇭 ภาษาไทย", command=select_th, bootstyle="info", width=15).pack(side=LEFT, padx=5, expand=YES)
+            btn_en = tb.Button(btn_frame, text="🇺🇸 English", command=select_en, bootstyle="primary", width=15)
+            btn_en.pack(side=LEFT, padx=5, expand=YES)
+            btn_th = tb.Button(btn_frame, text="🇹🇭 ภาษาไทย", command=select_th, bootstyle="info", width=15)
+            btn_th.pack(side=LEFT, padx=5, expand=YES)
         else:
-            tk.Button(btn_frame, text="🇺🇸 English", command=select_en, bg="#0d6efd", fg="white", width=15).pack(side=LEFT, padx=5, expand=YES)
-            tk.Button(btn_frame, text="🇹🇭 ภาษาไทย", command=select_th, bg="#17a2b8", fg="white", width=15).pack(side=LEFT, padx=5, expand=YES)
+            btn_en = tk.Button(btn_frame, text="🇺🇸 English", command=select_en, bg="#0d6efd", fg="white", width=15)
+            btn_en.pack(side=LEFT, padx=5, expand=YES)
+            btn_th = tk.Button(btn_frame, text="🇹🇭 ภาษาไทย", command=select_th, bg="#17a2b8", fg="white", width=15)
+            btn_th.pack(side=LEFT, padx=5, expand=YES)
         
         # Cancel button
         if not USE_FALLBACK_THEME:
@@ -845,7 +852,16 @@ def ask_ai_commit_preview(files: list[str], title: str = "AI Auto-Commit") -> Op
         else:
             tk.Button(main_frame, text="❌ ยกเลิก", command=cancel, bg="#3d3d3d", fg="white").pack(fill=X, pady=(10, 0))
         
-        root.bind('<Escape>', lambda e: cancel())
+        # Default Focus
+        if default_lang == "en" and btn_en:
+            btn_en.focus_set()
+            root.bind('<Return>', lambda e: select_en())
+        elif default_lang == "th" and btn_th:
+            btn_th.focus_set()
+            root.bind('<Return>', lambda e: select_th())
+        else:
+            root.bind('<Escape>', lambda e: cancel())
+            
         root.mainloop()
         
         return result["lang"]
@@ -952,7 +968,8 @@ def process_dialog_command(command, data_str):
         elif command == "ask_ai_commit_preview":
             result = ask_ai_commit_preview(
                 files=data.get("files", []),
-                title=data.get("title", "AI Auto-Commit")
+                title=data.get("title", "AI Auto-Commit"),
+                default_lang=data.get("default_lang")
             )
             print(json.dumps({"result": result}))
             

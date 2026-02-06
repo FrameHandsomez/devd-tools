@@ -115,4 +115,4 @@ Right-click the **Tray Icon** (Taskbar) -> **Settings**
 
 ---
 
-**Developed by Framex | v2.1.0 (Devd-Tools)**
+**Developed by Dev everyday team | v2.1.0 (Devd-Tools)**

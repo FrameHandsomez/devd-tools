@@ -216,8 +216,8 @@ class SystemTrayUI:
         import sys
         from pathlib import Path
         
-        # Path to settings_window.py
-        settings_script = Path(__file__).parent / "settings_window.py"
+        # Path to settings_dialog.py
+        settings_script = Path(__file__).parent / "settings_dialog.py"
         
         try:
             is_frozen = getattr(sys, 'frozen', False)
