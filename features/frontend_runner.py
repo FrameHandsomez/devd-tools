@@ -129,7 +129,13 @@ class FrontendRunnerFeature(BaseFeature):
     def _show_dev_menu(self):
         """Show development actions menu"""
         active = self.config_manager.get_active_project(self.CONFIG_KEY)
-        project_name = active.get("name", "Unknown") if active else "No Project"
+        
+        # Friendly project display
+        if active:
+            project_name = active.get("name", "Unknown")
+            project_display = f"▸ Working on: {project_name}"
+        else:
+            project_display = "⚠ No project selected"
         
         options = [
             "▶ Run Dev Server",
@@ -139,7 +145,7 @@ class FrontendRunnerFeature(BaseFeature):
         
         result_data = self._run_dialog_subprocess("ask_choice", {
             "title": "Dev Menu",
-            "message": f"Current: {project_name}\nSelect Action:",
+            "message": f"{project_display}\n\nWhat would you like to do?",
             "choices": options
         })
         
@@ -153,9 +159,12 @@ class FrontendRunnerFeature(BaseFeature):
         if choice_idx == 0: # Run
             self._run_dev_server()
         elif choice_idx == 1: # Select
-            self._show_project_selector()
+            if self._show_project_selector():
+                # Re-open menu with new project
+                self._show_dev_menu()
         elif choice_idx == 2: # Reset
-            self._show_project_selector()
+            if self._show_project_selector():
+                self._show_dev_menu()
 
     def _normalize_path(self, path_str: str) -> Path:
         """Normalize path string to proper Path object - handles all formats"""
@@ -222,8 +231,8 @@ class FrontendRunnerFeature(BaseFeature):
             message="Opening project selector..."
         )
     
-    def _show_project_selector(self):
-        """Show project selection dialog (runs in thread)"""
+    def _show_project_selector(self) -> bool:
+        """Show project selection dialog (runs in thread). Returns True if project was selected/added."""
         projects = self.config_manager.get_projects(self.CONFIG_KEY)
         
         result_data = self._run_dialog_subprocess("ask_project_selection", {
@@ -234,11 +243,11 @@ class FrontendRunnerFeature(BaseFeature):
         })
         
         if not result_data:
-            return
+            return False
             
         result = result_data.get("result")
         if not result:
-            return
+            return False
         
         action = result["action"]
         
@@ -250,9 +259,10 @@ class FrontendRunnerFeature(BaseFeature):
                 self._show_notification_async("❌ Error", f"Path not found: {project_path}")
                 return
             
-            # Set as active and run
+            # Set as active (don't auto-run, return True to re-open menu)
             self.config_manager.set_active_project(self.CONFIG_KEY, str(project_path))
-            self._start_dev_server(project_path)
+            self._show_notification_async("✅ Project Set", project["name"])
+            return True
         
         elif action == "add":
             path = result["path"]
@@ -260,10 +270,10 @@ class FrontendRunnerFeature(BaseFeature):
             
             self._show_notification_async("✅ Project Added", f"Added: {Path(path).name}")
             
-            # Set as active and run
+            # Set as active (don't auto-run, return True to re-open menu)
             project_path = Path(path)
             self.config_manager.set_active_project(self.CONFIG_KEY, path)
-            self._start_dev_server(project_path)
+            return True
         
         elif action == "remove":
             project = result["project"]
@@ -275,8 +285,7 @@ class FrontendRunnerFeature(BaseFeature):
             remaining = self.config_manager.get_projects(self.CONFIG_KEY)
             if remaining:
                 self._show_project_selector()
-            else:
-                self._is_dialog_open = False
+            return False  # Don't re-open menu after remove
 
     def _add_new_project_async(self) -> FeatureResult:
         """Add a new project (runs in thread)"""

@@ -251,7 +251,12 @@ class DockerManagerFeature(BaseFeature):
         """Show docker actions menu"""
         try:
             active = self._get_or_select_project()
-            project_name = active.name if active else "No Project"
+            
+            # Friendly project display
+            if active:
+                project_display = f"▸ Working on: {active.name}"
+            else:
+                project_display = "⚠ No project selected"
             
             options = [
                 "🚀 Docker Up",
@@ -265,7 +270,7 @@ class DockerManagerFeature(BaseFeature):
             
             result_data = self._run_dialog_subprocess("ask_choice", {
                 "title": "Docker Menu",
-                "message": f"Project: {project_name}\nSelect Action:",
+                "message": f"{project_display}\n\nWhat would you like to do?",
                 "choices": options
             })
             
@@ -294,9 +299,9 @@ class DockerManagerFeature(BaseFeature):
             elif choice_idx == 5: # Service Logs
                 self._select_service_and_open_logs(active)
             elif choice_idx == 6: # Select
-                self._show_project_selector()
-                # Re-open menu
-                # self._show_docker_menu() # Avoid recursion loop risk if selector fails
+                if self._show_project_selector():
+                    # Re-open menu with new project
+                    self._show_docker_menu()
         except Exception as e:
             logger.error(f"Menu error: {e}")
             self._run_notification_subprocess("❌ Menu Error", str(e))
@@ -311,8 +316,8 @@ class DockerManagerFeature(BaseFeature):
         threading.Thread(target=run_dialog, daemon=True).start()
         return FeatureResult(status=FeatureStatus.SUCCESS, message="Select Project...")
 
-    def _show_project_selector(self):
-        """Show project selector using subprocess"""
+    def _show_project_selector(self) -> bool:
+        """Show project selector using subprocess. Returns True if a project was selected/added."""
         
         # Gather projects similar to before
         all_projects = []
@@ -332,21 +337,23 @@ class DockerManagerFeature(BaseFeature):
         })
         
         if not result_data:
-            return
+            return False
             
         result = result_data.get("result")
         if not result:
-            return
+            return False
         
         action = result["action"]
         if action == "select":
             self.config_manager.set_active_project(self.CONFIG_KEY, result["project"]["path"])
             self._run_notification_subprocess("✅ Docker Project Set", result["project"]["name"])
+            return True
         elif action == "add":
             path = result["path"]
             self.config_manager.add_project(self.CONFIG_KEY, path)
             self.config_manager.set_active_project(self.CONFIG_KEY, path)
             self._run_notification_subprocess("✅ Added & Set", Path(path).name)
+            return True
         elif action == "remove":
             # Remove from relevant lists
             path_to_remove = result["project"]["path"]
@@ -356,6 +363,9 @@ class DockerManagerFeature(BaseFeature):
             
             if removed:
                 self._run_notification_subprocess("🗑️ Project Removed", f"Removed: {result['project']['name']}")
+            return False  # Don't re-open menu after remove, let user manually re-invoke if needed
+        
+        return False
             
     def _run_dialog_subprocess(self, command, data):
         """Helper to run dialog subprocess"""

@@ -201,8 +201,8 @@ class GitCommitFeature(BaseFeature):
         threading.Thread(target=run_dialog, daemon=True).start()
         return FeatureResult(status=FeatureStatus.SUCCESS, message="Opening project selector...")
     
-    def _show_project_selector(self):
-        """Show project selection dialog (runs in thread)"""
+    def _show_project_selector(self) -> bool:
+        """Show project selection dialog (runs in thread). Returns True if project was selected/added."""
         projects = self.config_manager.get_projects(self.CONFIG_KEY)
         
         result_data = self._run_dialog_subprocess("ask_project_selection", {
@@ -213,11 +213,11 @@ class GitCommitFeature(BaseFeature):
         })
         
         if not result_data:
-            return
+            return False
             
         result = result_data.get("result")
         if not result:
-            return
+            return False
         
         action = result["action"]
         
@@ -233,9 +233,10 @@ class GitCommitFeature(BaseFeature):
                 self._show_notification_async("❌ Error", "Not a git repository")
                 return
             
-            # Set as active and commit
+            # Set as active (don't auto-run commit, return True to re-open menu)
             self.config_manager.set_active_project(self.CONFIG_KEY, str(project_path))
-            self._run_commit(project_path)
+            self._show_notification_async("✅ Git Project Set", project["name"])
+            return True
         
         elif action == "add":
             path = result["path"]
@@ -247,9 +248,9 @@ class GitCommitFeature(BaseFeature):
             self.config_manager.add_project(self.CONFIG_KEY, path)
             self._show_notification_async("✅ Git Project Added", f"Added: {Path(path).name}")
             
-            # Set as active and commit
+            # Set as active (don't auto-run commit, return True to re-open menu)
             self.config_manager.set_active_project(self.CONFIG_KEY, path)
-            self._run_commit(Path(path))
+            return True
         
         elif action == "remove":
             project = result["project"]
@@ -260,8 +261,7 @@ class GitCommitFeature(BaseFeature):
             remaining = self.config_manager.get_projects(self.CONFIG_KEY)
             if remaining:
                 self._show_project_selector()
-            else:
-                self._is_dialog_open = False
+            return False  # Don't re-open menu after remove
     
     def _add_new_project_async(self) -> FeatureResult:
         """Add a new project (runs in thread)"""
@@ -376,15 +376,24 @@ class GitCommitFeature(BaseFeature):
             self._is_dialog_open = True
             try:
                 self._show_git_menu()
+            except Exception as e:
+                logger.error(f"Git menu error: {e}")
             finally:
                 self._is_dialog_open = False
+                logger.info("Git menu closed, dialog flag reset")
                 
         threading.Thread(target=run_menu, daemon=True).start()
         return FeatureResult(status=FeatureStatus.SUCCESS, message="Opening Git Menu...")
 
     def _show_git_menu(self):
         active = self.config_manager.get_active_project(self.CONFIG_KEY)
-        project_name = active.get("name", "Unknown") if active else "No Project"
+        
+        # Friendly project display
+        if active:
+            project_name = active.get("name", "Unknown")
+            project_display = f"▸ Working on: {project_name}"
+        else:
+            project_display = "⚠ No repo selected"
         
         options = [
             "✅ Commit & Push",
@@ -397,7 +406,7 @@ class GitCommitFeature(BaseFeature):
         
         result_data = self._run_dialog_subprocess("ask_choice", {
             "title": "Git Manager",
-            "message": f"Repo: {project_name}\nSelect Action:",
+            "message": f"{project_display}\n\nWhat would you like to do?",
             "choices": options
         })
         
@@ -409,7 +418,9 @@ class GitCommitFeature(BaseFeature):
             return
             
         if choice_idx == 5: # Switch Project
-            self._show_project_selector()
+            if self._show_project_selector():
+                # Re-open menu with new project
+                self._show_git_menu()
             return
             
         # Ensure active project
@@ -429,8 +440,8 @@ class GitCommitFeature(BaseFeature):
             self._run_ai_commit(project_path)
             
         elif choice_idx == 2: # Status
-            self.command_executor.execute_interactive(
-                commands=[["git", "status"]],
+            self.command_executor.execute_in_terminal(
+                command=["git", "status"],
                 cwd=project_path,
                 title="Git Status",
                 keep_open=True
@@ -456,13 +467,13 @@ class GitCommitFeature(BaseFeature):
                 )
 
     def _run_ai_commit(self, project_path: Path):
-        """Prepare AI prompt for commit message"""
+        """AI-assisted commit message with preview dialog"""
         import subprocess
         import pyperclip
         import webbrowser
         
         try:
-            # 1. Get git status/diff
+            # Get git diff
             staged_diff = subprocess.check_output(
                 ["git", "diff", "--cached"], 
                 cwd=project_path, text=True,
@@ -478,36 +489,71 @@ class GitCommitFeature(BaseFeature):
                 )
                 
             if not diff_output.strip():
-                diff_output = subprocess.check_output(
-                    ["git", "status"],
-                    cwd=project_path, text=True,
-                    encoding='utf-8', errors='replace'
-                )
+                self._show_notification_async("⚠️ ไม่มีการเปลี่ยนแปลง", "ไม่พบไฟล์ที่มีการแก้ไข")
+                return
             
-            # 2. Prepare Prompt
-            prompt_header = "You are a senior developer. Write a clear, concise git commit message for the following changes.\\n"
-            prompt_header += "Format:\\n<type>: <subject>\\n\\n<body>\\n\\nChanges:\\n```\\n"
+            # Count changed files
+            lines = diff_output.split('\n')
+            files_changed = [l.replace('diff --git a/', '').split(' ')[0] for l in lines if l.startswith('diff --git')]
             
-            prompt_footer = "\\n```\\n\\nConstraints:\\n"
-            prompt_footer += "- Use Conventional Commits (feat, fix, docs, style, refactor, test, chore)\\n"
-            prompt_footer += "- Keep subject under 50 chars\\n- English language"
+            # Get basenames only
+            basenames = [f.split('/')[-1] for f in files_changed]
             
-            prompt = prompt_header + diff_output[:3000] + prompt_footer
+            # Show preview dialog with scrollable file list
+            result = self._run_dialog_subprocess("ask_ai_commit_preview", {
+                "title": "✨ AI Auto-Commit",
+                "files": basenames
+            })
             
-            # 3. Copy to clipboard
+            if not result or not result.get("result"):
+                return  # Cancelled
+            
+            # Get language selection
+            lang = result.get("result")  # "en" or "th"
+            is_thai = (lang == "th")
+            
+            # Prepare prompt based on language
+            if is_thai:
+                prompt = f"""เขียน git commit message สำหรับการเปลี่ยนแปลงนี้
+รูปแบบ: <type>: <ข้อความภาษาไทย>
+Types: feat, fix, docs, refactor, test, chore
+ความยาวไม่เกิน 50 ตัวอักษร
+
+```
+{diff_output[:2500]}
+```
+
+ตอบแค่ commit message เท่านั้น"""
+            else:
+                prompt = f"""Write a git commit message for these changes.
+Format: <type>: <subject>
+Types: feat, fix, docs, refactor, test, chore
+Keep under 50 chars.
+
+```
+{diff_output[:2500]}
+```
+
+Reply with ONLY the commit message."""
+            
+            # Copy to clipboard
             pyperclip.copy(prompt)
             
-            # 4. Open ChatGPT
-            webbrowser.open("https://chat.openai.com/")
+            # Open NEW chat in ChatGPT
+            webbrowser.open("https://chatgpt.com/?model=auto")
             
+            # Show instruction notification
+            lang_label = "ภาษาไทย" if is_thai else "English"
             self._show_notification_async(
-                "✨ AI Prompt Ready",
-                "Prompt Copied! Please Paste (Ctrl+V) in ChatGPT"
+                f"✅ คัดลอกแล้ว! ({lang_label})",
+                "1. วาง (Ctrl+V) แล้วส่ง\n"
+                "2. คัดลอกคำตอบจาก AI\n"  
+                "3. กลับมาใช้ 'Commit & Push'"
             )
             
         except Exception as e:
             logger.error(f"AI Commit Error: {e}")
-            self._show_notification_async("❌ Error", f"Failed: {str(e)}")
+            self._show_notification_async("❌ เกิดข้อผิดพลาด", f"ไม่สำเร็จ: {str(e)}")
             
     def _show_notification_async(self, title: str, message: str):
         """Show notification in a separate thread"""

@@ -51,24 +51,100 @@ def _create_root() -> tk.Tk:
 
 
 def ask_yes_no(title: str, message: str) -> bool:
-    """Show Yes/No confirmation dialog"""
-    root = _create_root()
+    """Show Yes/No confirmation dialog with custom styling"""
+    global USE_FALLBACK_THEME
+    
+    root = None
     try:
-        # standard messagebox is stil fine, but we can make a custom one if needed.
-        # tb.dialogs.Messagebox is available in newer ttkbootstrap
-        try:
-            from ttkbootstrap.dialogs import Messagebox
-            result = Messagebox.yesno(message, title, parent=root) == 'Yes'
-        except ImportError:
-            result = messagebox.askyesno(title, message, parent=root)
-            
-        root.destroy()
-        return result
+        # Try ttkbootstrap first
+        log_debug("ask_yes_no: Creating Window...")
+        root = tb.Window(themename="cyborg")
+        root.title(title)
+        root.geometry("400x200")
+        root.resizable(False, False)
+        root.attributes('-topmost', True)
+        
     except Exception as e:
-        logger.error(f"Error checking yes/no: {e}")
-        if root:
+        log_debug(f"ask_yes_no: Theme init failed ({e}), using fallback")
+        USE_FALLBACK_THEME = True
+        root = tk.Tk()
+        root.title(title)
+        root.geometry("400x200")
+        root.resizable(False, False)
+        root.attributes('-topmost', True)
+        try:
+            root.configure(bg="#2d2d2d")
+        except:
+            pass
+
+    # Center
+    root.update_idletasks()
+    x = (root.winfo_screenwidth() - 400) // 2
+    y = (root.winfo_screenheight() - 200) // 2
+    root.geometry(f"+{x}+{y}")
+    
+    # Reveal window
+    root.deiconify()
+    root.attributes('-alpha', 1.0)
+    
+    result = {"value": False}
+    
+    try:
+        # Main frame
+        if not USE_FALLBACK_THEME:
+            main_frame = tb.Frame(root, padding=20)
+        else:
+            main_frame = tk.Frame(root, padx=20, pady=20, bg="#2d2d2d")
+        main_frame.pack(fill=BOTH, expand=YES)
+        
+        # Message
+        if not USE_FALLBACK_THEME:
+            tb.Label(main_frame, text=message, font=("Segoe UI", 11), wraplength=360).pack(pady=(0, 20))
+        else:
+            tk.Label(main_frame, text=message, font=("Segoe UI", 11), bg="#2d2d2d", fg="white", wraplength=360).pack(pady=(0, 20))
+        
+        # Button frame
+        if not USE_FALLBACK_THEME:
+            btn_frame = tb.Frame(main_frame)
+        else:
+            btn_frame = tk.Frame(main_frame, bg="#2d2d2d")
+        btn_frame.pack()
+        
+        def on_yes():
+            result["value"] = True
             root.destroy()
+            
+        def on_no():
+            result["value"] = False
+            root.destroy()
+        
+        # Buttons
+        if not USE_FALLBACK_THEME:
+            tb.Button(btn_frame, text="No", command=on_no, bootstyle="secondary-outline", width=10).pack(side=LEFT, padx=5)
+            tb.Button(btn_frame, text="Yes", command=on_yes, bootstyle="success", width=10).pack(side=LEFT, padx=5)
+        else:
+            tk.Button(btn_frame, text="No", command=on_no, width=10, bg="#3d3d3d", fg="white").pack(side=LEFT, padx=5)
+            tk.Button(btn_frame, text="Yes", command=on_yes, width=10, bg="#28a745", fg="white").pack(side=LEFT, padx=5)
+        
+        root.bind('<Return>', lambda e: on_yes())
+        root.bind('<Escape>', lambda e: on_no())
+        root.bind('y', lambda e: on_yes())
+        root.bind('n', lambda e: on_no())
+        
+        root.mainloop()
+        return result["value"]
+        
+    except Exception as e:
+        log_debug(f"ask_yes_no error: {e}")
+        import traceback
+        log_debug(traceback.format_exc())
         return False
+    finally:
+        try:
+            if root and root.winfo_exists():
+                root.destroy()
+        except:
+            pass
 
 
 def ask_git_clone_info(default_path: str = "C:\\Projects") -> Optional[Tuple[str, str]]:
@@ -646,6 +722,148 @@ def ask_project_selection(
         root.destroy()
 
 
+def ask_ai_commit_preview(files: list[str], title: str = "AI Auto-Commit") -> Optional[str]:
+    """Show AI commit preview with scrollable file list. Returns 'en', 'th', or None for cancel."""
+    global USE_FALLBACK_THEME
+    
+    root = None
+    try:
+        root = tb.Window(themename="cyborg")
+        root.title(title)
+        root.geometry("450x400")
+        root.resizable(False, False)
+        root.attributes('-topmost', True)
+    except Exception as e:
+        USE_FALLBACK_THEME = True
+        root = tk.Tk()
+        root.title(title)
+        root.geometry("450x400")
+        root.resizable(False, False)
+        root.attributes('-topmost', True)
+        try:
+            root.configure(bg="#2d2d2d")
+        except:
+            pass
+
+    # Center
+    root.update_idletasks()
+    x = (root.winfo_screenwidth() - 450) // 2
+    y = (root.winfo_screenheight() - 400) // 2
+    root.geometry(f"+{x}+{y}")
+    
+    root.deiconify()
+    root.attributes('-alpha', 1.0)
+    
+    result = {"lang": None}
+    
+    try:
+        # Main frame
+        if not USE_FALLBACK_THEME:
+            main_frame = tb.Frame(root, padding=15)
+        else:
+            main_frame = tk.Frame(root, padx=15, pady=15, bg="#2d2d2d")
+        main_frame.pack(fill=BOTH, expand=YES)
+        
+        # Header
+        header_text = f"📝 ไฟล์ที่เปลี่ยนแปลง ({len(files)} ไฟล์)"
+        if not USE_FALLBACK_THEME:
+            tb.Label(main_frame, text=header_text, font=("Segoe UI", 11, "bold")).pack(anchor="w")
+        else:
+            tk.Label(main_frame, text=header_text, font=("Segoe UI", 11, "bold"), bg="#2d2d2d", fg="white").pack(anchor="w")
+        
+        # Scrollable file list frame
+        if not USE_FALLBACK_THEME:
+            list_frame = tb.Frame(main_frame)
+        else:
+            list_frame = tk.Frame(main_frame, bg="#2d2d2d")
+        list_frame.pack(fill=BOTH, expand=YES, pady=10)
+        
+        # Canvas + Scrollbar for file list
+        canvas = tk.Canvas(list_frame, bg="#1a1a1a", highlightthickness=1, highlightbackground="#404040", height=150)
+        scrollbar = tk.Scrollbar(list_frame, command=canvas.yview)
+        file_frame = tk.Frame(canvas, bg="#1a1a1a")
+        
+        file_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.create_window((0, 0), window=file_frame, anchor="nw", width=400)
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side=LEFT, fill=BOTH, expand=YES)
+        scrollbar.pack(side=RIGHT, fill=Y)
+        
+        # Mouse wheel scroll
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        
+        # Add file entries
+        for f in files:
+            tk.Label(
+                file_frame, 
+                text=f"  • {f}", 
+                font=("Consolas", 9), 
+                bg="#1a1a1a", 
+                fg="#58a6ff",
+                anchor="w"
+            ).pack(fill=X, padx=5, pady=1)
+        
+        # Language selection label
+        if not USE_FALLBACK_THEME:
+            tb.Label(main_frame, text="🌐 เลือกภาษา Commit Message:", font=("Segoe UI", 10)).pack(anchor="w", pady=(10, 5))
+        else:
+            tk.Label(main_frame, text="🌐 เลือกภาษา Commit Message:", font=("Segoe UI", 10), bg="#2d2d2d", fg="white").pack(anchor="w", pady=(10, 5))
+        
+        # Button frame
+        if not USE_FALLBACK_THEME:
+            btn_frame = tb.Frame(main_frame)
+        else:
+            btn_frame = tk.Frame(main_frame, bg="#2d2d2d")
+        btn_frame.pack(fill=X, pady=5)
+        
+        def select_en():
+            result["lang"] = "en"
+            root.destroy()
+            
+        def select_th():
+            result["lang"] = "th"
+            root.destroy()
+            
+        def cancel():
+            result["lang"] = None
+            root.destroy()
+        
+        # Buttons
+        if not USE_FALLBACK_THEME:
+            tb.Button(btn_frame, text="🇺🇸 English", command=select_en, bootstyle="primary", width=15).pack(side=LEFT, padx=5, expand=YES)
+            tb.Button(btn_frame, text="🇹🇭 ภาษาไทย", command=select_th, bootstyle="info", width=15).pack(side=LEFT, padx=5, expand=YES)
+        else:
+            tk.Button(btn_frame, text="🇺🇸 English", command=select_en, bg="#0d6efd", fg="white", width=15).pack(side=LEFT, padx=5, expand=YES)
+            tk.Button(btn_frame, text="🇹🇭 ภาษาไทย", command=select_th, bg="#17a2b8", fg="white", width=15).pack(side=LEFT, padx=5, expand=YES)
+        
+        # Cancel button
+        if not USE_FALLBACK_THEME:
+            tb.Button(main_frame, text="❌ ยกเลิก", command=cancel, bootstyle="secondary-outline").pack(fill=X, pady=(10, 0))
+        else:
+            tk.Button(main_frame, text="❌ ยกเลิก", command=cancel, bg="#3d3d3d", fg="white").pack(fill=X, pady=(10, 0))
+        
+        root.bind('<Escape>', lambda e: cancel())
+        root.mainloop()
+        
+        return result["lang"]
+        
+    except Exception as e:
+        log_debug(f"ask_ai_commit_preview error: {e}")
+        return None
+    finally:
+        try:
+            canvas.unbind_all("<MouseWheel>")
+        except:
+            pass
+        try:
+            if root and root.winfo_exists():
+                root.destroy()
+        except:
+            pass
+
 
 # Setup debug logger for EXE troubleshooting
 def setup_debug_logger():
@@ -728,6 +946,13 @@ def process_dialog_command(command, data_str):
             result = ask_yes_no(
                 title=data.get("title", "Confirmation"),
                 message=data.get("message", "Are you sure?")
+            )
+            print(json.dumps({"result": result}))
+            
+        elif command == "ask_ai_commit_preview":
+            result = ask_ai_commit_preview(
+                files=data.get("files", []),
+                title=data.get("title", "AI Auto-Commit")
             )
             print(json.dumps({"result": result}))
             
