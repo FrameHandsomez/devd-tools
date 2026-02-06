@@ -279,25 +279,49 @@ class SettingsDialog:
 
     def _check_updates(self):
         import threading
-        def check():
+        
+        # UI Handlers (Run on Main Thread)
+        def on_check_start():
+            messagebox.showinfo("Checking", "Checking for updates...", parent=self.root)
+            
+        def on_update_found(has_update, msg, ver):
+            if has_update:
+                if messagebox.askyesno("Update Available", f"{msg}\n\nUpdate now?", parent=self.root):
+                    # Start update process in thread
+                    threading.Thread(target=run_apply_update, daemon=True).start()
+            else:
+                messagebox.showinfo("Up to Date", f"{msg} ({ver})", parent=self.root)
+                
+        def on_update_result(success, u_msg):
+            if success:
+                messagebox.showinfo("Success", "Updated! Please restart.", parent=self.root)
+                self.root.destroy()
+            else:
+                messagebox.showerror("Failed", u_msg, parent=self.root)
+
+        # Background Tasks
+        def run_check():
             from utils.updater import get_updater
             updater = get_updater()
             
-            self.root.after(0, lambda: messagebox.showinfo("Checking", "Checking for updates..."))
+            # Show "Checking..." on main thread
+            self.root.after(0, on_check_start)
             
+            # Heavy task
             has_update, msg, ver = updater.check_for_updates()
             
-            if has_update:
-                if messagebox.askyesno("Update Available", f"{msg}\n\nUpdate now?"):
-                    success, u_msg = updater.apply_update()
-                    if success:
-                        messagebox.showinfo("Success", "Updated! Please restart.")
-                    else:
-                        messagebox.showerror("Failed", u_msg)
-            else:
-                messagebox.showinfo("Up to Date", f"{msg} ({ver})")
+            # Report result on main thread
+            self.root.after(0, lambda: on_update_found(has_update, msg, ver))
+
+        def run_apply_update():
+            from utils.updater import get_updater
+            updater = get_updater()
+            
+            success, u_msg = updater.apply_update()
+            self.root.after(0, lambda: on_update_result(success, u_msg))
         
-        threading.Thread(target=check, daemon=True).start()
+        # Start Process
+        threading.Thread(target=run_check, daemon=True).start()
 
     def center_window(self):
         self.root.update_idletasks()

@@ -166,47 +166,52 @@ class SystemTrayUI:
             # Refresh menu
             self.icon.menu = self._create_menu()
     
+
     def _on_check_updates(self, icon=None, item=None):
-        """Check for updates from GitHub"""
+        """Check for updates from GitHub (Thread-Safe via Subprocess)"""
         import threading
         
         def check():
             from utils.updater import get_updater
             from ui.dialogs import show_notification, ask_yes_no
+            import subprocess
+            import sys
+            import json
+            from pathlib import Path
+            
+            # Helper to run dialog commands safely from background thread
+            def run_dialog_cmd(action, **kwargs):
+                dialog_script = Path(__file__).parent / "dialogs.py"
+                cmd = [sys.executable, str(dialog_script), action, json.dumps(kwargs)]
+                creation_flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+                return subprocess.run(cmd, capture_output=True, text=True, creationflags=creation_flags)
+
+            # 1. Notify Checking
+            run_dialog_cmd("show_notification", title="🔄 Checking...", message="Looking for updates...", duration=2000)
             
             updater = get_updater()
-            
-            show_notification(
-                title="🔄 Checking...",
-                message="Looking for updates...",
-                duration=2000
-            )
-            
             has_update, message, ver = updater.check_for_updates()
             
             if has_update:
-                # Ask user if they want to update
-                if ask_yes_no("🔄 Update Available", f"{message}\n\nDownload and install now?"):
+                # 2. Ask to Update
+                # We can't easily get return value from subprocess async, so we wait
+                result = run_dialog_cmd("ask_yes_no", title="🔄 Update Available", message=f"{message}\n\nDownload and install now?")
+                
+                # Check exit code or stdout for Yes/No
+                try:
+                    output_json = json.loads(result.stdout.strip())
+                    is_yes = output_json.get("result", False)
+                except:
+                    is_yes = False
+                
+                if is_yes:
                     success, pull_msg = updater.apply_update()
-                    
                     if success:
-                        show_notification(
-                            title="✅ Updated!",
-                            message="Please restart the application.",
-                            duration=5000
-                        )
+                         run_dialog_cmd("show_notification", title="✅ Updated!", message="Please restart the application.", duration=5000)
                     else:
-                        show_notification(
-                            title="❌ Update Failed",
-                            message=pull_msg,
-                            duration=5000
-                        )
+                         run_dialog_cmd("show_notification", title="❌ Update Failed", message=pull_msg, duration=5000)
             else:
-                show_notification(
-                    title="✅ Up to Date",
-                    message=message,
-                    duration=3000
-                )
+                 run_dialog_cmd("show_notification", title="✅ Up to Date", message=f"{message}", duration=3000)
         
         threading.Thread(target=check, daemon=True).start()
     
