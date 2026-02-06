@@ -181,29 +181,50 @@ class SystemTrayUI:
             
             # Helper to run dialog commands safely from background thread
             def run_dialog_cmd(action, **kwargs):
-                dialog_script = Path(__file__).parent / "dialogs.py"
-                cmd = [sys.executable, str(dialog_script), action, json.dumps(kwargs)]
-                creation_flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-                return subprocess.run(cmd, capture_output=True, text=True, creationflags=creation_flags)
+                try:
+                    data = json.dumps(kwargs)
+                    is_frozen = getattr(sys, 'frozen', False)
+                    
+                    if is_frozen:
+                        # Frozen: devd-tools.exe dialog <action> <json>
+                        cmd = [sys.executable, "dialog", action, data]
+                    else:
+                        # Script: python ui/dialogs.py <action> <json>
+                        dialog_script = Path(__file__).parent / "dialogs.py"
+                        cmd = [sys.executable, str(dialog_script), action, data]
+                        
+                    creation_flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+                    result = subprocess.run(cmd, capture_output=True, text=True, creationflags=creation_flags)
+                    
+                    if result.returncode != 0:
+                        logger.error(f"Dialog command failed: {result.stderr}")
+                    return result
+                except Exception as e:
+                    logger.error(f"Failed to run dialog command: {e}")
+                    return None
 
             # 1. Notify Checking
             run_dialog_cmd("show_notification", title="🔄 Checking...", message="Looking for updates...", duration=2000)
             
-            updater = get_updater()
-            has_update, message, ver = updater.check_for_updates()
+            try:
+                updater = get_updater()
+                has_update, message, ver = updater.check_for_updates()
+            except Exception as e:
+                logger.error(f"Update check exception: {e}")
+                has_update, message, ver = False, f"Check failed: {e}", "0.0.0"
             
             if has_update:
                 # 2. Ask to Update
-                # We can't easily get return value from subprocess async, so we wait
-                result = run_dialog_cmd("ask_yes_no", title="🔄 Update Available", message=f"{message}\n\nDownload and install now?")
+                res = run_dialog_cmd("ask_yes_no", title="🔄 Update Available", message=f"{message}\n\nDownload and install now?")
                 
-                # Check exit code or stdout for Yes/No
-                try:
-                    output_json = json.loads(result.stdout.strip())
-                    is_yes = output_json.get("result", False)
-                except:
-                    is_yes = False
-                
+                is_yes = False
+                if res and res.stdout:
+                    try:
+                        output_json = json.loads(res.stdout.strip())
+                        is_yes = output_json.get("result", False)
+                    except Exception as json_err:
+                        logger.error(f"JSON parse error: {json_err}, Output: {res.stdout}")
+
                 if is_yes:
                     success, pull_msg = updater.apply_update()
                     if success:
