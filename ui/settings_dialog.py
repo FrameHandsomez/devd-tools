@@ -236,6 +236,156 @@ class SettingsDialog:
             for pat, action in patterns.items():
                 self.tv_bindings.insert("", END, values=(key, pat, feature, action))
 
+        # Buttons
+        btn_frame = tb.Frame(f_right, padding=(0, 10))
+        btn_frame.pack(fill=X)
+        
+        tb.Button(btn_frame, text="➕ Add", command=self._on_add_binding, bootstyle="success-outline", width=10).pack(side=LEFT, padx=5)
+        tb.Button(btn_frame, text="✏️ Edit", command=self._on_edit_binding, bootstyle="warning-outline", width=10).pack(side=LEFT, padx=5)
+        tb.Button(btn_frame, text="🗑️ Delete", command=self._on_delete_binding, bootstyle="danger-outline", width=10).pack(side=RIGHT, padx=5)
+
+    def _on_add_binding(self):
+        selection = self.lb_modes.curselection()
+        if not selection:
+            messagebox.showwarning("Warning", "Please select a mode first.")
+            return
+        
+        mode = self.lb_modes.get(selection[0])
+        new_data = self._ask_binding_dialog(mode=mode)
+        
+        if new_data:
+            key = new_data["key"]
+            # Structure: modes -> [mode] -> bindings -> [key]
+            if "modes" not in self.config: self.config["modes"] = {}
+            if mode not in self.config["modes"]: self.config["modes"][mode] = {}
+            if "bindings" not in self.config["modes"][mode]: self.config["modes"][mode]["bindings"] = {}
+            
+            # Check if exists
+            if key in self.config["modes"][mode]["bindings"]:
+                if not messagebox.askyesno("Confirm", f"Key '{key}' already exists. Overwrite?"):
+                    return
+            
+            self.config["modes"][mode]["bindings"][key] = {
+                "feature": new_data["feature"],
+                "patterns": {new_data["pattern"]: new_data["action"]}
+            }
+            self._on_mode_select(None) # Refresh
+
+    def _on_edit_binding(self):
+        # Get selected item
+        sel = self.tv_bindings.selection()
+        if not sel:
+            messagebox.showwarning("Warning", "Please select a binding to edit.")
+            return
+            
+        values = self.tv_bindings.item(sel[0])['values']
+        # values = (key, pattern, feature, action)
+        current_key = values[0]
+        
+        mode_sel = self.lb_modes.curselection()
+        if not mode_sel: return
+        mode = self.lb_modes.get(mode_sel[0])
+        
+        # Pre-fill data
+        current_data = {
+            "key": current_key,
+            "pattern": values[1],
+            "feature": values[2],
+            "action": values[3]
+        }
+        
+        new_data = self._ask_binding_dialog(mode=mode, initial_data=current_data)
+        
+        if new_data:
+            # If key changed, delete old one
+            new_key = new_data["key"]
+            bindings = self.config["modes"][mode]["bindings"]
+            
+            if new_key != current_key:
+                if new_key in bindings:
+                     if not messagebox.askyesno("Confirm", f"Key '{new_key}' already exists. Overwrite?"):
+                        return
+                del bindings[current_key]
+            
+            # Save new data
+            bindings[new_key] = {
+                "feature": new_data["feature"],
+                "patterns": {new_data["pattern"]: new_data["action"]}
+            }
+            self._on_mode_select(None)
+
+    def _on_delete_binding(self):
+        sel = self.tv_bindings.selection()
+        if not sel:
+            messagebox.showwarning("Warning", "Please select a binding to delete.")
+            return
+            
+        key = self.tv_bindings.item(sel[0])['values'][0]
+        
+        mode_sel = self.lb_modes.curselection()
+        if not mode_sel: return
+        mode = self.lb_modes.get(mode_sel[0])
+        
+        if messagebox.askyesno("Confirm", f"Delete binding for '{key}'?"):
+            del self.config["modes"][mode]["bindings"][key]
+            self._on_mode_select(None)
+
+    def _ask_binding_dialog(self, mode, initial_data=None):
+        """Show dialog to input binding details"""
+        dialog = tb.Toplevel(self.root)
+        dialog.title("Edit Binding")
+        dialog.geometry("400x350")
+        dialog.resizable(False, False)
+        
+        # Center
+        dialog.update_idletasks()
+        x = (dialog.winfo_screenwidth() // 2) - 200
+        y = (dialog.winfo_screenheight() // 2) - 175
+        dialog.geometry(f"+{x}+{y}")
+        
+        dialog.attributes('-topmost', True)
+        
+        result = {}
+        
+        frame = tb.Frame(dialog, padding=20)
+        frame.pack(fill=BOTH, expand=YES)
+        
+        # Key Input
+        tb.Label(frame, text="Key (e.g., F9, ctrl+c):").pack(anchor="w")
+        var_key = tk.StringVar(value=initial_data["key"] if initial_data else "")
+        tb.Entry(frame, textvariable=var_key).pack(fill=X, pady=(0, 10))
+        
+        # Pattern Combo
+        tb.Label(frame, text="Pattern:").pack(anchor="w")
+        var_pat = tk.StringVar(value=initial_data["pattern"] if initial_data else "single_press")
+        patterns = ["single_press", "double_press", "long_press", "hold"]
+        tb.Combobox(frame, textvariable=var_pat, values=patterns).pack(fill=X, pady=(0, 10))
+        
+        # Feature Input
+        tb.Label(frame, text="Feature Name:").pack(anchor="w")
+        var_feat = tk.StringVar(value=initial_data["feature"] if initial_data else "custom_command")
+        tb.Entry(frame, textvariable=var_feat).pack(fill=X, pady=(0, 10))
+        
+        # Action Input
+        tb.Label(frame, text="Action / Command:").pack(anchor="w")
+        var_act = tk.StringVar(value=initial_data["action"] if initial_data else "")
+        tb.Entry(frame, textvariable=var_act).pack(fill=X, pady=(0, 20))
+        
+        def save():
+            if not var_key.get():
+                messagebox.showerror("Error", "Key is required.")
+                return
+            result["key"] = var_key.get()
+            result["pattern"] = var_pat.get()
+            result["feature"] = var_feat.get()
+            result["action"] = var_act.get()
+            dialog.destroy()
+            
+        tb.Button(frame, text="Save", command=save, bootstyle="success").pack(fill=X)
+        
+        dialog.wait_window()
+        return result if result else None
+
     def _build_prefs_tab(self):
         # AI Settings
         group_ai = tb.Labelframe(self.tab_prefs, text="AI Automation", padding=10)
