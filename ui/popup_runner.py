@@ -318,10 +318,13 @@ def show_guide_popup(mode_name: str, guide_lines: list, is_notification: bool = 
                 import sys
                 from pathlib import Path
                 
-                settings_script = Path(__file__).parent / "settings_dialog.py"
-                
                 # Launch settings asynchronously
-                subprocess.Popen([sys.executable, str(settings_script)])
+                is_frozen = getattr(sys, 'frozen', False)
+                if is_frozen:
+                    subprocess.Popen([sys.executable, "settings"])
+                else:
+                    settings_script = Path(__file__).parent / "settings_dialog.py"
+                    subprocess.Popen([sys.executable, str(settings_script)])
                 
                 # Close guide
                 fade_out()

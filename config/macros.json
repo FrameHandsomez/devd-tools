@@ -1,6 +1,6 @@
 {
     "version": "2.0",
-    "current_mode": "GIT",
+    "current_mode": "DOCKER",
     "modes": {
         "DEV": {
             "name": "Development Mode",

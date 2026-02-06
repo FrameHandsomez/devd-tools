@@ -389,9 +389,8 @@ def start():
         # Handle Settings Window
         if cmd_arg == "settings":
             try:
-                from ui.settings_window import SettingsWindow
-                app = SettingsWindow()
-                app.run()
+                from ui.settings_dialog import main
+                main()
                 sys.exit(0)
             except Exception as e:
                 print(f"Error launching settings: {e}")
