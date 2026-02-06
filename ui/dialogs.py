@@ -963,6 +963,15 @@ def process_dialog_command(command, data_str):
                 is_error=data.get("is_error", False)
             )
             
+        elif command == "ask_git_clone_info":
+            result = ask_git_clone_info(
+                default_path=data.get("default_path", "C:\\Projects")
+            )
+            if result:
+                print(json.dumps({"git_url": result[0], "path": result[1]}))
+            else:
+                print(json.dumps({"git_url": None, "path": None}))
+            
     except Exception as e:
         log_debug(f"FATAL ERROR in process_dialog_command: {e}")
         import traceback

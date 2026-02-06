@@ -400,6 +400,7 @@ class GitCommitFeature(BaseFeature):
             "✨ AI Auto-Commit",
             "📊 Check Status",
             "🔄 Pull Changes",
+            "📥 Clone Project",
             "🗑️ Discard Changes",
             "📂 Switch Project"
         ]
@@ -416,14 +417,19 @@ class GitCommitFeature(BaseFeature):
         choice_idx = result_data.get("result")
         if choice_idx is None:
             return
+        
+        # Handle Clone Project (doesn't need active project)
+        if choice_idx == 4: # Clone Project
+            self._run_clone_project()
+            return
             
-        if choice_idx == 5: # Switch Project
+        if choice_idx == 6: # Switch Project
             if self._show_project_selector():
                 # Re-open menu with new project
                 self._show_git_menu()
             return
             
-        # Ensure active project
+        # Ensure active project for remaining actions
         if not active:
              if self._show_project_selector(): 
                  active = self.config_manager.get_active_project(self.CONFIG_KEY)
@@ -454,7 +460,7 @@ class GitCommitFeature(BaseFeature):
                 title="Git Pull"
             )
             
-        elif choice_idx == 4: # Discard
+        elif choice_idx == 5: # Discard
             yes_no = self._run_dialog_subprocess("ask_yes_no", {
                 "title": "Confirm Discard",
                 "message": "⚠️ Are you sure you want to discard ALL changes?"
@@ -465,6 +471,44 @@ class GitCommitFeature(BaseFeature):
                     cwd=project_path,
                     title="Discard Changes"
                 )
+    
+    def _run_clone_project(self):
+        """Clone a git repository"""
+        import os
+        
+        # Get clone info from user
+        result = self._run_dialog_subprocess("ask_git_clone_info", {
+            "default_path": "C:\\Projects"
+        })
+        
+        if not result or not result.get("git_url"):
+            return
+            
+        git_url = result["git_url"]
+        clone_path = result["path"]
+        
+        # Extract repo name from URL
+        repo_name = git_url.rstrip('/').split('/')[-1]
+        if repo_name.endswith('.git'):
+            repo_name = repo_name[:-4]
+        
+        full_path = os.path.join(clone_path, repo_name)
+        
+        # Run git clone in terminal
+        self.command_executor.execute_interactive(
+            commands=[["git", "clone", git_url, full_path]],
+            cwd=Path(clone_path),
+            title=f"Cloning {repo_name}"
+        )
+        
+        # Add to project list
+        self.config_manager.add_project(self.CONFIG_KEY, repo_name, full_path)
+        self.config_manager.set_active_project(self.CONFIG_KEY, repo_name)
+        
+        self._show_notification_async(
+            "✅ Clone Started",
+            f"Cloning to:\n{full_path}\n\nProject added to list!"
+        )
 
     def _run_ai_commit(self, project_path: Path):
         """AI-assisted commit message with preview dialog"""
