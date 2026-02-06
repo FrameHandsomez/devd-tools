@@ -265,12 +265,39 @@ class SettingsDialog:
             self.var_clone_path.set(path)
 
     def _build_about_tab(self):
+        from core.constants import APP_NAME, APP_VERSION, REPO_OWNER
+        
         tb.Label(self.tab_about, text="Developer Macro Engine", font=("Segoe UI", 20, "bold")).pack(pady=20)
-        tb.Label(self.tab_about, text="Version 2.1.0 (Devd-Tools)", font=("Segoe UI", 12)).pack()
-        tb.Label(self.tab_about, text="© 2026 Dev everyday team", font=("Segoe UI", 10), foreground="gray").pack(pady=20)
+        tb.Label(self.tab_about, text=f"Version {APP_VERSION} ({APP_NAME})", font=("Segoe UI", 12)).pack()
+        tb.Label(self.tab_about, text=f"© 2026 {REPO_OWNER}", font=("Segoe UI", 10), foreground="gray").pack(pady=20)
         
         info = "Features:\n- AI Auto-Commit\n- Smart Terminal\n- Docker Manager\n- Git Workflow"
-        tb.Label(self.tab_about, text=info, justify="center").pack()
+        tb.Label(self.tab_about, text=info, justify="center").pack(pady=(0, 20))
+        
+        tb.Button(self.tab_about, text="🔄 Check for Updates", 
+                 command=self._check_updates, bootstyle="info-outline").pack()
+
+    def _check_updates(self):
+        import threading
+        def check():
+            from utils.updater import get_updater
+            updater = get_updater()
+            
+            self.root.after(0, lambda: messagebox.showinfo("Checking", "Checking for updates..."))
+            
+            has_update, msg, ver = updater.check_for_updates()
+            
+            if has_update:
+                if messagebox.askyesno("Update Available", f"{msg}\n\nUpdate now?"):
+                    success, u_msg = updater.apply_update()
+                    if success:
+                        messagebox.showinfo("Success", "Updated! Please restart.")
+                    else:
+                        messagebox.showerror("Failed", u_msg)
+            else:
+                messagebox.showinfo("Up to Date", f"{msg} ({ver})")
+        
+        threading.Thread(target=check, daemon=True).start()
 
     def center_window(self):
         self.root.update_idletasks()

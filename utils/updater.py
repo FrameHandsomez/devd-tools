@@ -1,52 +1,161 @@
 """
 Auto-Updater Module
-Checks for updates from the local Git repository and applies them.
+Supports updating via Git (for dev) and GitHub Releases (for frozen EXE).
 """
 
 import subprocess
 import sys
 import os
+import json
+import urllib.request
+import urllib.error
+import time
 from pathlib import Path
 from typing import Optional, Tuple
 from utils.logger import get_logger
+from core.constants import APP_VERSION, REPO_OWNER, REPO_NAME
 
 logger = get_logger(__name__)
 
-# Get project root (works both for .py and .exe)
+# Get project root
 if getattr(sys, 'frozen', False):
-    # Running as .exe
     PROJECT_ROOT = Path(sys.executable).parent
+    IS_FROZEN = True
 else:
-    # Running as .py
     PROJECT_ROOT = Path(__file__).parent.parent
-
+    IS_FROZEN = False
 
 class Updater:
-    """
-    Git-based auto-updater.
-    Checks if there are new commits on the remote and pulls them.
-    """
-    
-    def __init__(self, repo_path: Optional[Path] = None, branch: str = "main"):
-        self.repo_path = repo_path or PROJECT_ROOT
+    def __init__(self, branch: str = "main"):
         self.branch = branch
-        self._git_available = self._check_git()
-    
-    def _check_git(self) -> bool:
-        """Check if git is available"""
+        self.repo_api_url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/releases/latest"
+        
+    def check_for_updates(self) -> Tuple[bool, str, str]:
+        """
+        Check for updates.
+        Returns: (has_update, message, latest_version)
+        """
+        if IS_FROZEN:
+            return self._check_github_release()
+        else:
+            return self._check_git_repo()
+
+    def apply_update(self) -> Tuple[bool, str]:
+        """
+        Apply the update.
+        Returns: (success, message)
+        """
+        if IS_FROZEN:
+            return self._update_frozen_exe()
+        else:
+            return self._git_pull()
+
+    # ==========================
+    # FROZEN MODE (GitHub Release)
+    # ==========================
+    def _check_github_release(self) -> Tuple[bool, str, str]:
         try:
-            result = subprocess.run(
-                ["git", "--version"],
-                capture_output=True,
-                text=True,
-                cwd=self.repo_path
-            )
-            return result.returncode == 0
-        except FileNotFoundError:
-            return False
-    
+            logger.info(f"Checking updates from {self.repo_api_url}")
+            req = urllib.request.Request(self.repo_api_url)
+            req.add_header('User-Agent', 'Devd-Tools-Updater')
+            
+            with urllib.request.urlopen(req) as response:
+                data = json.loads(response.read().decode())
+                
+            latest_tag = data.get("tag_name", "").strip()
+            current_version = APP_VERSION.strip()
+            
+            # Simple string comparison (assumes vX.Y.Z format)
+            if latest_tag != current_version:
+                body = data.get("body", "No release notes.")
+                return True, f"New version {latest_tag} available!\n\n{body[:500]}", latest_tag
+            
+            return False, "You are on the latest version.", current_version
+            
+        except Exception as e:
+            logger.error(f"Update check failed: {e}")
+            return False, f"Failed to check updates: {e}", APP_VERSION
+
+    def _update_frozen_exe(self) -> Tuple[bool, str]:
+        try:
+            # 1. Get download URL
+            req = urllib.request.Request(self.repo_api_url)
+            req.add_header('User-Agent', 'Devd-Tools-Updater')
+            with urllib.request.urlopen(req) as response:
+                data = json.loads(response.read().decode())
+                
+            assets = data.get("assets", [])
+            download_url = None
+            filename = "devd-tools.exe"
+            
+            for asset in assets:
+                name = asset.get("name", "").lower()
+                if name.endswith(".exe"):
+                    download_url = asset.get("browser_download_url")
+                    filename = asset.get("name") # Use actual name
+                    break
+            
+            if not download_url:
+                return False, "No exe asset found in latest release."
+                
+            # 2. Download to .new.exe
+            current_exe = Path(sys.executable)
+            new_exe = current_exe.with_suffix(".new.exe")
+            
+            logger.info(f"Downloading update from {download_url} to {new_exe}")
+            urllib.request.urlretrieve(download_url, new_exe)
+            
+            # 3. Create Update Script
+            bat_script = PROJECT_ROOT / "update.bat"
+            script_content = f"""
+@echo off
+timeout /t 2 /nobreak > NUL
+del "{current_exe.name}"
+move "{new_exe.name}" "{current_exe.name}"
+start "" "{current_exe.name}"
+del "%~f0"
+"""
+            # Write bat file
+            with open(bat_script, "w") as f:
+                f.write(script_content)
+                
+            # 4. Run script and exit
+            logger.info("Starting update script...")
+            subprocess.Popen([str(bat_script)], shell=True)
+            sys.exit(0) # Terminate immediately
+            
+        except Exception as e:
+            logger.error(f"EXE update failed: {e}")
+            return False, f"Update failed: {e}"
+
+    # ==========================
+    # SCRIPT MODE (Git)
+    # ==========================
+    def _check_git_repo(self) -> Tuple[bool, str, str]:
+        updater = GitUpdater(PROJECT_ROOT, self.branch)
+        has_updates, msg, count = updater.check_for_updates()
+        return has_updates, msg, "git-head"
+
+    def _git_pull(self) -> Tuple[bool, str]:
+        updater = GitUpdater(PROJECT_ROOT, self.branch)
+        success, msg = updater.apply_update()
+        if success:
+            # Restart script
+            self._restart_script()
+        return success, msg
+
+    def _restart_script(self):
+        python = sys.executable
+        os.execl(python, python, *sys.argv)
+
+
+class GitUpdater:
+    """Helper for Git operations (Legacy logic)"""
+    def __init__(self, repo_path: Path, branch: str = "main"):
+        self.repo_path = repo_path
+        self.branch = branch
+
     def _run_git(self, *args) -> Tuple[bool, str]:
-        """Run a git command and return (success, output)"""
         try:
             result = subprocess.run(
                 ["git"] + list(args),
@@ -54,103 +163,30 @@ class Updater:
                 text=True,
                 cwd=self.repo_path
             )
-            output = result.stdout.strip() or result.stderr.strip()
-            return result.returncode == 0, output
-        except Exception as e:
-            return False, str(e)
-    
+            return result.returncode == 0, result.stdout.strip() or result.stderr.strip()
+        except:
+            return False, "Git unavailable"
+
     def check_for_updates(self) -> Tuple[bool, str, int]:
-        """
-        Check if updates are available.
+        success, _ = self._run_git("fetch", "origin", self.branch)
+        if not success: return False, "Fetch failed", 0
         
-        Returns:
-            (has_updates: bool, message: str, commits_behind: int)
-        """
-        if not self._git_available:
-            return False, "Git is not available", 0
-        
-        # Fetch latest from remote
-        logger.info("Fetching updates from remote...")
-        success, output = self._run_git("fetch", "origin", self.branch)
-        if not success:
-            return False, f"Failed to fetch: {output}", 0
-        
-        # Check how many commits behind
-        success, output = self._run_git(
-            "rev-list", "--count", f"HEAD..origin/{self.branch}"
-        )
-        
-        if not success:
-            return False, f"Failed to check commits: {output}", 0
-        
+        success, output = self._run_git("rev-list", "--count", f"HEAD..origin/{self.branch}")
         try:
-            commits_behind = int(output.strip())
-        except ValueError:
-            commits_behind = 0
+             count = int(output) if success else 0
+        except: count = 0
+             
+        if count > 0:
+            return True, f"{count} new commits available (Git)", count
+        return False, "Up to date", 0
         
-        if commits_behind > 0:
-            # Get commit messages for display
-            success, log_output = self._run_git(
-                "log", "--oneline", f"HEAD..origin/{self.branch}"
-            )
-            message = f"มี {commits_behind} อัพเดตใหม่!\n\n{log_output[:500]}"
-            return True, message, commits_behind
-        else:
-            return False, "คุณใช้เวอร์ชันล่าสุดแล้ว ✅", 0
-    
     def apply_update(self) -> Tuple[bool, str]:
-        """
-        Pull the latest changes from the remote.
-        
-        Returns:
-            (success: bool, message: str)
-        """
-        if not self._git_available:
-            return False, "Git is not available"
-        
-        logger.info(f"Pulling updates from origin/{self.branch}...")
         success, output = self._run_git("pull", "origin", self.branch)
-        
-        if success:
-            logger.info("Update applied successfully")
-            return True, f"อัพเดตสำเร็จ! 🎉\n\n{output[:300]}"
-        else:
-            logger.error(f"Update failed: {output}")
-            return False, f"อัพเดตล้มเหลว: {output[:200]}"
-    
-    def get_current_version(self) -> str:
-        """Get current commit hash (short)"""
-        success, output = self._run_git("rev-parse", "--short", "HEAD")
-        if success:
-            return output.strip()
-        return "unknown"
-    
-    def get_remote_version(self) -> str:
-        """Get remote HEAD commit hash (short)"""
-        success, output = self._run_git("rev-parse", "--short", f"origin/{self.branch}")
-        if success:
-            return output.strip()
-        return "unknown"
+        if success: return True, f"Pulled: {output}"
+        return False, f"Pull failed: {output}"
 
-
-def restart_application():
-    """Restart the application after an update"""
-    logger.info("Restarting application...")
-    
-    if getattr(sys, 'frozen', False):
-        # Running as .exe - restart the executable
-        exe_path = sys.executable
-        os.execl(exe_path, exe_path, *sys.argv[1:])
-    else:
-        # Running as .py - restart Python with the same script
-        python = sys.executable
-        script = sys.argv[0]
-        os.execl(python, python, script, *sys.argv[1:])
-
-
-# Singleton instance
+# Singleton
 _updater = None
-
 def get_updater() -> Updater:
     global _updater
     if _updater is None:

@@ -182,7 +182,7 @@ class SystemTrayUI:
                 duration=2000
             )
             
-            has_update, message, commits_behind = updater.check_for_updates()
+            has_update, message, ver = updater.check_for_updates()
             
             if has_update:
                 # Ask user if they want to update
